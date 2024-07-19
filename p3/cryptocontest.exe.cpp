@@ -12,8 +12,9 @@ unsigned char _data[0x10000]; // 140000000 ~
 #define DAT_140006650 (*(_data + 0x6650))
 #define DAT_140006660 (*(_data + 0x6660))
 #define DAT_140007030 (*(_data + 0x7030))
-const char* s_chacha20_140004320 = "chacha20";
-#define PTR_s_chacha20_140004320 (*s_chacha20_140004320)
+unsigned char _chacha20_ctx[0x50] = "chacha20";
+//const char* s_chacha20_140004320 = "chacha20";
+//#define PTR_s_chacha20_140004320 (*s_chacha20_140004320)
 void zero16(void* buf) {
   for (int i = 0; i < 16; ++i) {
     ((unsigned char*)buf)[i] = 0;
@@ -53,13 +54,23 @@ int FUN_140001b90(uint *param_1,uint *param_2,uint param_3,uint *param_4);
 void FUN_140002530(longlong param_1);
 void FUN_1400027f8(void);
 void FUN_140002c70(void);
-void __security_init_cookie(void);
 
 void fill16(void* buf, undefined4 a, undefined4 b, undefined4 c, undefined4 d) {
   ((undefined4*)buf)[0] = a;
   ((undefined4*)buf)[1] = b;
   ((undefined4*)buf)[2] = c;
   ((undefined4*)buf)[3] = d;
+}
+
+void UndefinedFunction_1400020c0(longlong param_1)
+
+{
+  *(undefined2 *)(param_1 + 0xb8) = 0;
+  zero16((undefined (*) [16])(param_1 + 0x8c));
+  zero16((undefined (*) [16])(param_1 + 0x9c));
+  *(undefined8 *)(param_1 + 0xac) = 0;
+  *(undefined4 *)(param_1 + 0xb4) = 0;
+  return;
 }
 // CUSTOM END
 
@@ -655,12 +666,16 @@ int FUN_140001070(uint *param_1,int *param_2)
   undefined auStack_78 [32];
   byte local_58 [40];
   ulonglong local_30;
+
+  static int count = 0;
   
   local_30 = DAT_140006008 ^ (ulonglong)auStack_78;
   iVar8 = 0;
   iVar7 = iVar8;
   do {
-    iVar3 = memcmp(&DAT_140006620 + (longlong)iVar7 * 10,&PTR_s_chacha20_140004320,0x50);
+    //iVar3 = memcmp(*(void**)(&DAT_140006620 + (longlong)iVar7 * 10),_chacha20_ctx,0x50);
+    iVar3 = 0;
+    iVar7 = count++;
     if (iVar3 == 0) goto LAB_14000113d;
     iVar7 = iVar7 + 1;
   } while (iVar7 < 0x20);
@@ -670,30 +685,47 @@ int FUN_140001070(uint *param_1,int *param_2)
     if (*plVar4 == 0) {
       lVar5 = (longlong)iVar7;
       lVar1 = lVar5 * 0x50;
-      *(undefined4 *)(&DAT_140006620 + lVar5 * 10) = 0x400043b0;
-      *(undefined4 *)((longlong)&DAT_140006620 + lVar1 + 4) = 1;
-      *(undefined4 *)(lVar1 + 0x140006628) = 0x28;
-      *(undefined4 *)(lVar1 + 0x14000662c) = 0;
+      //*(undefined4 *)(&DAT_140006620 + lVar5 * 10) = 0x400043b0;
+      //*(undefined4 *)((longlong)&DAT_140006620 + lVar1 + 4) = 1;
+      //*(undefined4 *)(lVar1 + 0x140006628) = 0x28;
+      //*(undefined4 *)(lVar1 + 0x14000662c) = 0;
+      //*(void**)(&DAT_140006620 + 0x00) = (void*)s_chacha20_140004320;
+      *(void**)(&DAT_140006620 + 0x00) = (void*)0;
+      *(void**)(&DAT_140006620 + 0x08) = (void*)0x28;
       lVar1 = lVar5 * 0x50;
-      *(undefined4 *)(&DAT_140006630 + lVar1) = 0x400020c0;
-      *(undefined4 *)(lVar1 + 0x140006634) = 1;
-      *(undefined4 *)(lVar1 + 0x140006638) = 0x400020f0;
-      *(undefined4 *)(lVar1 + 0x14000663c) = 1;
+      //*(undefined4 *)(&DAT_140006630 + lVar1) = 0x400020c0;
+      //*(undefined4 *)(lVar1 + 0x140006634) = 1;
+      //*(undefined4 *)(lVar1 + 0x140006638) = 0x400020f0;
+      //*(undefined4 *)(lVar1 + 0x14000663c) = 1;
+      *(void**)(&DAT_140006620 + 0x10) = (void*)UndefinedFunction_1400020c0;
+      *(void**)(&DAT_140006620 + 0x18) = (void*)FUN_1400020f0;
       lVar1 = lVar5 * 0x50;
-      *(undefined4 *)(&DAT_140006640 + lVar1) = 0x400022b0;
-      *(undefined4 *)(lVar1 + 0x140006644) = 1;
-      *(undefined4 *)(lVar1 + 0x140006648) = 0x40002390;
-      *(undefined4 *)(lVar1 + 0x14000664c) = 1;
+      //*(undefined4 *)(&DAT_140006640 + lVar1) = 0x400022b0;
+      //*(undefined4 *)(lVar1 + 0x140006644) = 1;
+      //*(undefined4 *)(lVar1 + 0x140006648) = 0x40002390;
+      //*(undefined4 *)(lVar1 + 0x14000664c) = 1;
+      //*(void**)(&DAT_140006620 + 0x20) = (void*)FUN_1400022b0;
+      //*(void**)(&DAT_140006620 + 0x28) = (void*)FUN_140002390;
+      *(void**)(&DAT_140006620 + 0x20) = (void*)0;
+      *(void**)(&DAT_140006620 + 0x28) = (void*)0;
       lVar1 = lVar5 * 0x50;
-      *(undefined4 *)(&DAT_140006650 + lVar1) = 0x40002410;
-      *(undefined4 *)(lVar1 + 0x140006654) = 1;
-      *(undefined4 *)(lVar1 + 0x140006658) = 0x40002450;
-      *(undefined4 *)(lVar1 + 0x14000665c) = 1;
+      //*(undefined4 *)(&DAT_140006650 + lVar1) = 0x40002410;
+      //*(undefined4 *)(lVar1 + 0x140006654) = 1;
+      //*(undefined4 *)(lVar1 + 0x140006658) = 0x40002450;
+      //*(undefined4 *)(lVar1 + 0x14000665c) = 1;
+      //*(void**)(&DAT_140006620 + 0x30) = (void*)FUN_140002410;
+      //*(void**)(&DAT_140006620 + 0x3c) = (void*)FUN_140002450;
+      *(void**)(&DAT_140006620 + 0x30) = (void*)0;
+      *(void**)(&DAT_140006620 + 0x38) = (void*)0;
       lVar5 = lVar5 * 0x50;
-      *(undefined4 *)(&DAT_140006660 + lVar5) = 0x400024e0;
-      *(undefined4 *)(lVar5 + 0x140006664) = 1;
-      *(undefined4 *)(lVar5 + 0x140006668) = 0;
-      *(undefined4 *)(lVar5 + 0x14000666c) = 0;
+      //*(undefined4 *)(&DAT_140006660 + lVar5) = 0x400024e0;
+      //*(undefined4 *)(lVar5 + 0x140006664) = 1;
+      //*(undefined4 *)(lVar5 + 0x140006668) = 0;
+      //*(undefined4 *)(lVar5 + 0x14000666c) = 0;
+      //*(void**)(&DAT_140006620 + 0x40) = (void*)FUN_1400024e0;
+      //*(void**)(&DAT_140006620 + 0x48) = (void*)0;
+      *(void**)(&DAT_140006620 + 0x40) = (void*)0;
+      *(void**)(&DAT_140006620 + 0x48) = (void*)0;
 LAB_14000113d:
       *param_2 = iVar7;
       if (iVar7 != -1) {
@@ -737,7 +769,7 @@ LAB_14000113d:
         _Memory = (undefined8 *)malloc((longlong)(iVar7 % 0x100 + 9));
         if ((_Memory != (undefined8 *)0x0) && (*(short *)(param_1 + 0x2e) != 0)) {
           *_Memory = 0;
-          FUN_140001b90(param_1,(uint *)_Memory,8,(uint *)_Memory);
+          FUN_140001b90(param_1,(uint *)_Memory,8,(uint *)_Memory); // 여기서 8byte가 짤림;
         }
         free(_Memory);
       }
@@ -754,9 +786,11 @@ LAB_1400012d7:
 
 
 
-void FUN_1400012f0(undefined8 param_1,undefined8 param_2,undefined8 param_3,uint *param_4)
+void FUN_1400012f0()
 
 {
+  undefined8 param_3;
+  uint *param_4;
   uint uVar1;
   uint uVar2;
   int iVar3;
@@ -779,13 +813,19 @@ void FUN_1400012f0(undefined8 param_1,undefined8 param_2,undefined8 param_3,uint
   undefined local_88 [8];
   uint auStack_80 [2];
   undefined local_78 [16];
-  undefined local_68 [8];
   uint auStack_60 [2];
-  undefined local_58 [16];
-  undefined local_48 [8];
   uint auStack_40 [2];
-  undefined local_38 [16];
   ulonglong local_28;
+
+  undefined local_68 [16];
+  undefined local_58 [16];
+  undefined local_48 [16];
+  undefined local_38 [16];
+  
+  printf("local_68 = %p\n", local_68);
+  printf("local_58 = %p\n", local_58);
+  printf("local_48 = %p\n", local_48);
+  printf("local_38 = %p\n", local_38);
   
   local_28 = DAT_140006008 ^ (ulonglong)auStack_1a8;
   pFVar4 = fopen("c_contest_2024.jpg","rb");
@@ -816,8 +856,20 @@ void FUN_1400012f0(undefined8 param_1,undefined8 param_2,undefined8 param_3,uint
         iVar3 = FUN_140001070(puVar6 + (longlong)(int)uVar10 * 0x2f,
                               (int *)((longlong)pvVar7 + (longlong)(int)uVar10 * 4));
         if (iVar3 == 0) goto LAB_14000164d;
+        unsigned char *buf = (unsigned char *)(puVar6 + (longlong)(int)uVar10 * 0x2f);
+        printf("Iter %d, buf_addr = %p\n", uVar10, buf);
+        for (int i = 0; i < 0x2f * 4; ++i) {
+          printf("%02X ", buf[i]);
+          if (i % 16 == 15) {
+            printf("\n");
+          }
+        }
+        printf("\n");
         uVar10 = uVar10 + 1;
+
+
       } while (uVar10 < 0x10);
+      printf("puVar6 = %p, %d\n", puVar6, *(short *)(puVar6 + 0x2e));
       if ((puVar6 != (uint *)0x0) && (*(short *)(puVar6 + 0x2e) != 0)) {
         //_local_68 = ZEXT816(0);
         param_4 = (uint *)local_68;
@@ -829,6 +881,10 @@ void FUN_1400012f0(undefined8 param_1,undefined8 param_2,undefined8 param_3,uint
         //local_38 = _local_68;
         zero16(&local_38);
         FUN_140001b90(puVar6,(uint *)local_68,0x40,param_4);
+        printf("local_68\n");
+        for (int i = 0; i < 16; ++i) {
+          printf("%02llX ", (ulonglong)(byte)local_68[i]);
+        }
       }
       lVar12 = 0x10;
       do {
@@ -874,12 +930,15 @@ void FUN_1400012f0(undefined8 param_1,undefined8 param_2,undefined8 param_3,uint
         lVar12 = lVar12 + -1;
       } while (lVar12 != 0);
       //FUN_140001010(&DAT_140004308,uVar5 & 0xffffffff,param_3,param_4);
-      FUN_140001010();
-      do {
-        //FUN_140001010("%02X ",(ulonglong)(byte)local_68[lVar11],param_3,param_4);
-        FUN_140001010();
-        lVar11 = lVar11 + 1;
-      } while (lVar11 < 0x40);
+      printf("%llu\n", uVar5);
+      //do {
+      //  //FUN_140001010("%02X ",(ulonglong)(byte)local_68[lVar11],param_3,param_4);
+      //  FUN_140001010();
+      //  lVar11 = lVar11 + 1;
+      //} while (lVar11 < 0x40);
+      for (int i = 0; i < 64; ++i) {
+        printf("%02llX ", (ulonglong)(byte)local_68[i]);
+      }
       puts("");
       pFVar4 = fopen("c_contest_2024.jpg","rb");
       _File = fopen("c_contest_2024_out.jpg","wb");
@@ -915,9 +974,10 @@ LAB_14000164d:
 
 // WARNING: Could not reconcile some variable overlaps
 
-void FUN_140001670(undefined *param_1,uint *param_2,int param_3)
-
-{
+// param_1 next state
+// param_2 current total state
+// param_3 application number (0x14 == 20)
+void FUN_140001670(undefined *param_1,uint *param_2,int param_3) {
   uint uVar1;
   uint uVar2;
   uint uVar3;
@@ -988,7 +1048,8 @@ void FUN_140001670(undefined *param_1,uint *param_2,int param_3)
     local_c0 = uVar10;
     local_bc = uVar8;
     do {
-      uVar7 = uVar2 + uVar12 ^ uVar7;
+      //uVar7 = uVar2 + uVar12 ^ uVar7;
+      uVar7 = param_2[0] + param_2[4] ^ param_2[12];
       uVar8 = uVar7 << 0x10 | uVar7 >> 0x10;
       local_ac = uVar8 + local_c4;
       uVar10 = local_ac ^ uVar12;
@@ -1285,7 +1346,7 @@ LAB_140001be6:
         uVar11 = param_1[0x20];
         uVar20 = uVar20 - 1;
         puVar17 = (uint *)((longlong)puVar17 + 1);
-      } while (uVar20 != 0);
+      } while (uVar20 != 0); // state -> param_2 copy routine (first 64 - 8 byte)
     }
     else {
       uVar12 = param_3;
@@ -1447,7 +1508,7 @@ LAB_140001c71:
            pbVar15[(longlong)param_2 - (longlong)local_78] ^ *pbVar15;
       pbVar15 = pbVar15 + 1;
       uVar18 = uVar18 - 1;
-    } while (uVar18 != 0);
+    } while (uVar18 != 0); // last 8 byte copying
   }
 LAB_140001e43:
   param_1[0x20] = 0x40 - uVar11;
@@ -1465,6 +1526,11 @@ LAB_140001e6f:
 undefined8 FUN_140001ea0(undefined4 *param_1,undefined4 *param_2)
 
 {
+  *param_1 = 0x61707865;
+  param_1[1] = 0x3320646e;
+  param_1[2] = 0x79622d32;
+  param_1[3] = 0x6b206574;
+
   param_1[4] = *param_2;
   param_1[5] = param_2[1];
   param_1[6] = param_2[2];
@@ -1473,17 +1539,17 @@ undefined8 FUN_140001ea0(undefined4 *param_1,undefined4 *param_2)
   param_1[9] = param_2[5];
   param_1[10] = param_2[6];
   param_1[0xb] = param_2[7];
-  *param_1 = 0x61707865;
-  param_1[1] = 0x3320646e;
-  param_1[2] = 0x79622d32;
+
   param_1[0x22] = 0x14;
   param_1[0x21] = 0;
-  param_1[3] = 0x6b206574;
   return 0;
 }
 
 
 
+// param_1 random 0x28 bytes
+// param_2 0x28
+// param_3 chacha ctx
 void FUN_1400020f0(byte *param_1,uint param_2,uint *param_3)
 
 {
@@ -1580,40 +1646,6 @@ undefined8 FUN_1400022b0(undefined4 *param_1)
   return 0;
 }
 
-
-
-undefined8 FUN_140002450(undefined (*param_1) [16],uint *param_2,uint *param_3)
-
-{
-  int iVar1;
-  int iVar2;
-  
-  if (*param_2 < 0x28) {
-    *param_2 = 0x28;
-    return 6;
-  }
-  if (((param_3 != (uint *)0x0) && (param_1 != (undefined (*) [16])0x0)) &&
-     (*(short *)(param_3 + 0x2e) != 0)) {
-    //*param_1 = ZEXT816(0);
-    zero16(param_1);
-    //param_1[1] = ZEXT816(0);
-    zero16(param_1 + 1);
-    *(undefined8 *)param_1[2] = 0;
-    iVar1 = FUN_140001b90(param_3,(uint *)param_1,0x28,(uint *)param_1);
-    iVar2 = 0;
-    if (iVar1 == 0) {
-      iVar2 = 0x28;
-    }
-    if (iVar2 == 0x28) {
-      *param_2 = 0x28;
-      return 0;
-    }
-  }
-  return 9;
-}
-
-
-
 void FUN_140002530(longlong param_1)
 
 {
@@ -1629,86 +1661,9 @@ void FUN_140002530(longlong param_1)
 
 
 
-// WARNING: Function: _guard_dispatch_icall replaced with injection: guard_dispatch_icall
-
-uint FUN_140002634(void)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-//  undefined8 uVar1;
-//  bool bVar2;
-//  int iVar3;
-//  ulonglong uVar4;
-//  code **ppcVar5;
-//  longlong *plVar6;
-//  undefined8 uVar7;
-//  undefined8 *puVar8;
-//  uint *puVar9;
-//  ulonglong uVar10;
-//  uint unaff_EBX;
-//  uint *in_R9;
-//  
-//  uVar4 = __scrt_initialize_crt(1);
-//  if ((char)uVar4 == '\0') {
-//    FUN_140002cb0(7);
-//  }
-//  else {
-//    bVar2 = false;
-//    uVar4 = __scrt_acquire_startup_lock();
-//    unaff_EBX = unaff_EBX & 0xffffff00 | (uint)(uVar4 & 0xff);
-//    if (DAT_1400065b0 != 1) {
-//      if (DAT_1400065b0 == 0) {
-//        DAT_1400065b0 = 1;
-//        iVar3 = _initterm_e(&DAT_140004270,&DAT_140004288);
-//        if (iVar3 != 0) {
-//          return 0xff;
-//        }
-//        _initterm(&DAT_140004258,&DAT_140004268);
-//        DAT_1400065b0 = 2;
-//      }
-//      else {
-//        bVar2 = true;
-//      }
-//      __scrt_release_startup_lock((char)(uVar4 & 0xff));
-//      ppcVar5 = (code **)FUN_140002c98();
-//      if ((*ppcVar5 != (code *)0x0) &&
-//         (uVar4 = FUN_140002a54((longlong)ppcVar5), (char)uVar4 != '\0')) {
-//        (**ppcVar5)(0,2);
-//      }
-//      plVar6 = (longlong *)FUN_140002ca0();
-//      if ((*plVar6 != 0) && (uVar4 = FUN_140002a54((longlong)plVar6), (char)uVar4 != '\0')) {
-//        _register_thread_local_exe_atexit_callback(*plVar6);
-//      }
-//      uVar7 = _get_initial_narrow_environment();
-//      puVar8 = (undefined8 *)__p___argv();
-//      uVar1 = *puVar8;
-//      puVar9 = (uint *)__p___argc();
-//      uVar10 = (ulonglong)*puVar9;
-//      unaff_EBX = FUN_1400012f0(uVar10,uVar1,uVar7,in_R9);
-//      uVar4 = FUN_140002e04();
-//      if ((char)uVar4 != '\0') {
-//        if (!bVar2) {
-//          _cexit();
-//        }
-//        __scrt_uninitialize_crt(CONCAT71((int7)(uVar10 >> 8),1),'\0');
-//        return unaff_EBX;
-//      }
-//      goto LAB_1400027a0;
-//    }
-//  }
-//  FUN_140002cb0(7);
-//LAB_1400027a0:
-//                    // WARNING: Subroutine does not return
-//  exit(unaff_EBX);
-}
-
-
-
 int main()
 {
-  __security_init_cookie();
-  FUN_140002634();
+  FUN_1400012f0();
   return 0;
 }
 
@@ -1770,710 +1725,6 @@ void FUN_1400027f8(void)
 //  DAT_1400061d8 = _DAT_140006050;
 //  __raise_securityfailure((_EXCEPTION_POINTERS *)&PTR_DAT_1400042b0);
 //  return;
-}
-
-
-
-// Library Function - Single Match
-//  capture_previous_context
-// 
-// Libraries: Visual Studio 2015 Release, Visual Studio 2017 Release, Visual Studio 2019 Release
-
-void capture_previous_context(PCONTEXT param_1)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-//  DWORD64 ControlPc;
-//  PRUNTIME_FUNCTION FunctionEntry;
-//  int iVar1;
-//  DWORD64 local_res8;
-//  ulonglong local_res10;
-//  PVOID local_res18 [2];
-//  
-//  RtlCaptureContext();
-//  ControlPc = param_1->Rip;
-//  iVar1 = 0;
-//  do {
-//    FunctionEntry = RtlLookupFunctionEntry(ControlPc,&local_res8,(PUNWIND_HISTORY_TABLE)0x0);
-//    if (FunctionEntry == (PRUNTIME_FUNCTION)0x0) {
-//      return;
-//    }
-//    RtlVirtualUnwind(0,local_res8,ControlPc,FunctionEntry,param_1,local_res18,&local_res10,
-//                     (PKNONVOLATILE_CONTEXT_POINTERS)0x0);
-//    iVar1 = iVar1 + 1;
-//  } while (iVar1 < 2);
-//  return;
-}
-
-
-
-// Library Function - Single Match
-//  __scrt_acquire_startup_lock
-// 
-// Libraries: Visual Studio 2015 Release, Visual Studio 2017 Release, Visual Studio 2019 Release
-
-ulonglong __scrt_acquire_startup_lock(void)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-//  bool bVar1;
-//  undefined7 extraout_var;
-//  ulonglong uVar3;
-//  void *pvVar2;
-//  
-//  bVar1 = __scrt_is_ucrt_dll_in_use();
-//  pvVar2 = (void *)CONCAT71(extraout_var,bVar1);
-//  if ((int)pvVar2 == 0) {
-//LAB_14000296e:
-//    uVar3 = (ulonglong)pvVar2 & 0xffffffffffffff00;
-//  }
-//  else {
-//    do {
-//      LOCK();
-//      bVar1 = DAT_1400065b8 == 0;
-//      DAT_1400065b8 = DAT_1400065b8 ^ (ulonglong)bVar1 * (DAT_1400065b8 ^ (ulonglong)StackBase);
-//      pvVar2 = (void *)(!bVar1 * DAT_1400065b8);
-//      if (bVar1) goto LAB_14000296e;
-//    } while (StackBase != pvVar2);
-//    uVar3 = CONCAT71((int7)((ulonglong)pvVar2 >> 8),1);
-//  }
-//  return uVar3;
-}
-
-
-
-// Library Function - Single Match
-//  __scrt_initialize_crt
-// 
-// Libraries: Visual Studio 2015 Release, Visual Studio 2017 Release, Visual Studio 2019 Release
-
-ulonglong __scrt_initialize_crt(int param_1)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-//  ulonglong uVar1;
-//  
-//  if (param_1 == 0) {
-//    DAT_1400065c0 = 1;
-//  }
-//  FUN_140002f3c();
-//  uVar1 = FUN_140002c60();
-//  if ((char)uVar1 != '\0') {
-//    uVar1 = FUN_140002c60();
-//    if ((char)uVar1 != '\0') {
-//      return uVar1 & 0xffffffffffffff00 | 1;
-//    }
-//    uVar1 = FUN_140002c60();
-//  }
-//  return uVar1 & 0xffffffffffffff00;
-}
-
-
-
-// WARNING: Globals starting with '_' overlap smaller symbols at the same address
-// Library Function - Single Match
-//  __scrt_initialize_onexit_tables
-// 
-// Library: Visual Studio 2019 Release
-
-undefined8 __scrt_initialize_onexit_tables(uint param_1)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-//  code *pcVar1;
-//  bool bVar2;
-//  ulonglong in_RAX;
-//  undefined7 extraout_var;
-//  undefined8 uVar3;
-//  
-//  if (DAT_1400065c1 == '\0') {
-//    if (1 < param_1) {
-//      FUN_140002cb0(5);
-//      pcVar1 = (code *)swi(3);
-//      uVar3 = (*pcVar1)();
-//      return uVar3;
-//    }
-//    bVar2 = __scrt_is_ucrt_dll_in_use();
-//    if (((int)CONCAT71(extraout_var,bVar2) == 0) || (param_1 != 0)) {
-//      in_RAX = 0xffffffffffffffff;
-//      _DAT_1400065c8 = 0xffffffff;
-//      uRam00000001400065cc = 0xffffffff;
-//      uRam00000001400065d0 = 0xffffffff;
-//      uRam00000001400065d4 = 0xffffffff;
-//      _DAT_1400065d8 = 0xffffffffffffffff;
-//      _DAT_1400065e0 = 0xffffffff;
-//      uRam00000001400065e4 = 0xffffffff;
-//      uRam00000001400065e8 = 0xffffffff;
-//      uRam00000001400065ec = 0xffffffff;
-//      _DAT_1400065f0 = 0xffffffffffffffff;
-//    }
-//    else {
-//      in_RAX = _initialize_onexit_table(&DAT_1400065c8);
-//      if (((int)in_RAX != 0) ||
-//         (in_RAX = _initialize_onexit_table(&DAT_1400065e0), (int)in_RAX != 0)) {
-//        return in_RAX & 0xffffffffffffff00;
-//      }
-//    }
-//    DAT_1400065c1 = '\x01';
-//  }
-//  return CONCAT71((int7)(in_RAX >> 8),1);
-}
-
-
-
-// WARNING: Removing unreachable block (ram,0x000140002ae1)
-
-ulonglong FUN_140002a54(longlong param_1)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-//  ulonglong uVar1;
-//  uint7 uVar2;
-//  IMAGE_SECTION_HEADER *pIVar3;
-//  
-//  uVar1 = 0;
-//  for (pIVar3 = &IMAGE_SECTION_HEADER_140000208; pIVar3 != (IMAGE_SECTION_HEADER *)&DAT_1400002f8;
-//      pIVar3 = pIVar3 + 1) {
-//    if (((ulonglong)(uint)pIVar3->VirtualAddress <= param_1 - 0x140000000U) &&
-//       (uVar1 = (ulonglong)((pIVar3->Misc).PhysicalAddress + pIVar3->VirtualAddress),
-//       param_1 - 0x140000000U < uVar1)) goto LAB_140002aca;
-//  }
-//  pIVar3 = (IMAGE_SECTION_HEADER *)0x0;
-//LAB_140002aca:
-//  if (pIVar3 == (IMAGE_SECTION_HEADER *)0x0) {
-//    uVar1 = uVar1 & 0xffffffffffffff00;
-//  }
-//  else {
-//    uVar2 = (uint7)(uVar1 >> 8);
-//    if ((int)pIVar3->Characteristics < 0) {
-//      uVar1 = (ulonglong)uVar2 << 8;
-//    }
-//    else {
-//      uVar1 = CONCAT71(uVar2,1);
-//    }
-//  }
-//  return uVar1;
-}
-
-
-
-// Library Function - Single Match
-//  __scrt_release_startup_lock
-// 
-// Libraries: Visual Studio 2015 Release, Visual Studio 2017 Release, Visual Studio 2019 Release
-
-void __scrt_release_startup_lock(char param_1)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-//  bool bVar1;
-//  undefined3 extraout_var;
-//  
-//  bVar1 = __scrt_is_ucrt_dll_in_use();
-//  if ((CONCAT31(extraout_var,bVar1) != 0) && (param_1 == '\0')) {
-//    DAT_1400065b8 = 0;
-//  }
-//  return;
-}
-
-
-
-// Library Function - Single Match
-//  __scrt_uninitialize_crt
-// 
-// Library: Visual Studio 2019 Release
-
-undefined __scrt_uninitialize_crt(undefined8 param_1,char param_2)
-
-{
-  fprintf(stderr, "[%s:%d:%s] not implemented", __FILE__, __LINE__, __FUNCTION__);
-  return 0;
-  //if ((DAT_1400065c0 == '\0') || (param_2 == '\0')) {
-  //  FUN_140002c60();
-  //  FUN_140002c60();
-  //}
-  //return 1;
-}
-
-
-
-
-
-
-
-
-undefined8 FUN_140002c3c(void)
-
-{
-  return 0;
-}
-
-
-
-undefined8 FUN_140002c40(void)
-
-{
-  return 1;
-}
-
-
-
-undefined8 FUN_140002c48(void)
-
-{
-  return 0x4000;
-}
-
-
-
-
-undefined FUN_140002c60(void)
-
-{
-  return 1;
-}
-
-
-
-void _guard_check_icall(void)
-
-{
-  return;
-}
-
-
-
-
-
-
-
-
-undefined8 thunk_FUN_140002c3c(void)
-
-{
-  return 0;
-}
-
-
-
-
-
-
-
-
-// WARNING: Removing unreachable block (ram,0x000140003006)
-// WARNING: Removing unreachable block (ram,0x000140002f76)
-// WARNING: Removing unreachable block (ram,0x000140002f4f)
-// WARNING: Globals starting with '_' overlap smaller symbols at the same address
-
-undefined8 FUN_140002f3c(void)
-
-{
-  int *piVar1;
-  uint *puVar2;
-  longlong lVar3;
-  uint uVar4;
-  uint uVar5;
-  uint uVar6;
-  byte in_XCR0;
-  
-  piVar1 = (int *)cpuid_basic_info(0);
-  uVar6 = 0;
-  puVar2 = (uint *)cpuid_Version_info(1);
-  uVar4 = puVar2[3];
-  if ((piVar1[2] ^ 0x49656e69U | piVar1[3] ^ 0x6c65746eU | piVar1[1] ^ 0x756e6547U) == 0) {
-    _DAT_140006028 = 0xffffffffffffffff;
-    uVar5 = *puVar2 & 0xfff3ff0;
-    _DAT_140006020 = 0x8000;
-    if ((((uVar5 == 0x106c0) || (uVar5 == 0x20660)) || (uVar5 == 0x20670)) ||
-       ((uVar5 - 0x30650 < 0x21 &&
-        ((0x100010001U >> ((ulonglong)(uVar5 - 0x30650) & 0x3f) & 1) != 0)))) {
-      DAT_14000661c = DAT_14000661c | 1;
-    }
-  }
-  if (6 < *piVar1) {
-    lVar3 = cpuid_Extended_Feature_Enumeration_info(7);
-    uVar6 = *(uint *)(lVar3 + 4);
-    if ((uVar6 >> 9 & 1) != 0) {
-      DAT_14000661c = DAT_14000661c | 2;
-    }
-  }
-  _DAT_140006018 = 1;
-  DAT_14000601c = 2;
-  if ((uVar4 >> 0x14 & 1) != 0) {
-    _DAT_140006018 = 2;
-    DAT_14000601c = 6;
-    if ((((uVar4 >> 0x1b & 1) != 0) && ((uVar4 >> 0x1c & 1) != 0)) && ((in_XCR0 & 6) == 6)) {
-      DAT_14000601c = 0xe;
-      _DAT_140006018 = 3;
-      if ((uVar6 & 0x20) != 0) {
-        _DAT_140006018 = 5;
-        DAT_14000601c = 0x2e;
-        if (((uVar6 & 0xd0030000) == 0xd0030000) && ((in_XCR0 & 0xe0) == 0xe0)) {
-          DAT_14000601c = 0x6e;
-          _DAT_140006018 = 6;
-        }
-      }
-    }
-  }
-  return 0;
-}
-
-
-
-// WARNING: Globals starting with '_' overlap smaller symbols at the same address
-// Library Function - Single Match
-//  __scrt_is_ucrt_dll_in_use
-// 
-// Library: Visual Studio 2019 Release
-
-bool __scrt_is_ucrt_dll_in_use(void)
-
-{
-  return _DAT_140006030 != 0;
-}
-
-
-
-void __current_exception(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003106. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __current_exception();
-  return;
-}
-
-
-
-void __current_exception_context(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000310c. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __current_exception_context();
-  return;
-}
-
-
-
-void * __cdecl memset(void *_Dst,int _Val,size_t _Size)
-
-{
-  void *pvVar1;
-  
-                    // WARNING: Could not recover jumptable at 0x000140003112. Too many branches
-                    // WARNING: Treating indirect jump as call
-  pvVar1 = memset(_Dst,_Val,_Size);
-  return pvVar1;
-}
-
-
-
-void _seh_filter_exe(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003118. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _seh_filter_exe();
-  return;
-}
-
-
-
-void _set_app_type(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000311e. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _set_app_type();
-  return;
-}
-
-
-
-void __setusermatherr(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003124. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __setusermatherr();
-  return;
-}
-
-
-
-void _configure_narrow_argv(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000312a. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _configure_narrow_argv();
-  return;
-}
-
-
-
-void _initialize_narrow_environment(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003130. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _initialize_narrow_environment();
-  return;
-}
-
-
-
-void _get_initial_narrow_environment(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003136. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _get_initial_narrow_environment();
-  return;
-}
-
-
-
-void _initterm(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000313c. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _initterm();
-  return;
-}
-
-
-
-void _initterm_e(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003142. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _initterm_e();
-  return;
-}
-
-
-
-void __cdecl exit(int _Code)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003148. Too many branches
-                    // WARNING: Subroutine does not return
-                    // WARNING: Treating indirect jump as call
-  exit(_Code);
-  return;
-}
-
-
-
-void __cdecl _exit(int _Code)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000314e. Too many branches
-                    // WARNING: Subroutine does not return
-                    // WARNING: Treating indirect jump as call
-  _exit(_Code);
-  return;
-}
-
-
-
-errno_t __cdecl _set_fmode(int _Mode)
-
-{
-  errno_t eVar1;
-  
-                    // WARNING: Could not recover jumptable at 0x000140003154. Too many branches
-                    // WARNING: Treating indirect jump as call
-  eVar1 = _set_fmode(_Mode);
-  return eVar1;
-}
-
-
-
-void __p___argc(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000315a. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __p___argc();
-  return;
-}
-
-
-
-void __p___argv(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003160. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __p___argv();
-  return;
-}
-
-
-
-void __cdecl _cexit(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003166. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _cexit();
-  return;
-}
-
-
-
-void _register_thread_local_exe_atexit_callback(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003172. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _register_thread_local_exe_atexit_callback();
-  return;
-}
-
-
-
-int __cdecl _configthreadlocale(int _Flag)
-
-{
-  int iVar1;
-  
-                    // WARNING: Could not recover jumptable at 0x000140003178. Too many branches
-                    // WARNING: Treating indirect jump as call
-  iVar1 = _configthreadlocale(_Flag);
-  return iVar1;
-}
-
-
-
-void __p__commode(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003184. Too many branches
-                    // WARNING: Treating indirect jump as call
-  __p__commode();
-  return;
-}
-
-
-
-void _initialize_onexit_table(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000318a. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _initialize_onexit_table();
-  return;
-}
-
-
-
-void _register_onexit_function(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003190. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _register_onexit_function();
-  return;
-}
-
-
-
-void _crt_atexit(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x000140003196. Too many branches
-                    // WARNING: Treating indirect jump as call
-  _crt_atexit();
-  return;
-}
-
-
-
-void terminate(void)
-
-{
-                    // WARNING: Could not recover jumptable at 0x00014000319c. Too many branches
-                    // WARNING: Subroutine does not return
-                    // WARNING: Treating indirect jump as call
-  terminate();
-  return;
-}
-
-
-
-// Library Function - Single Match
-//  __GSHandlerCheckCommon
-// 
-// Libraries: Visual Studio 2017 Release, Visual Studio 2019 Release
-
-void __GSHandlerCheckCommon(ulonglong param_1,longlong param_2,uint *param_3)
-
-{
-  ulonglong uVar1;
-  ulonglong uVar2;
-  
-  uVar2 = param_1;
-  if ((*(byte *)param_3 & 4) != 0) {
-    uVar2 = (longlong)(int)param_3[1] + param_1 & (longlong)(int)-param_3[2];
-  }
-  uVar1 = (ulonglong)*(uint *)(*(longlong *)(param_2 + 0x10) + 8);
-  if ((*(byte *)(uVar1 + 3 + *(longlong *)(param_2 + 8)) & 0xf) != 0) {
-    param_1 = param_1 + (*(byte *)(uVar1 + 3 + *(longlong *)(param_2 + 8)) & 0xfffffff0);
-  }
-  FUN_140002530(param_1 ^ *(ulonglong *)((longlong)(int)(*param_3 & 0xfffffff8) + uVar2));
-  return;
-}
-
-
-
-int __cdecl memcmp(void *_Buf1,void *_Buf2,size_t _Size)
-
-{
-  int iVar1;
-  
-                    // WARNING: Could not recover jumptable at 0x00014000321f. Too many branches
-                    // WARNING: Treating indirect jump as call
-  iVar1 = memcmp(_Buf1,_Buf2,_Size);
-  return iVar1;
-}
-
-
-
-void * __cdecl memcpy(void *_Dst,void *_Src,size_t _Size)
-
-{
-  void *pvVar1;
-  
-                    // WARNING: Could not recover jumptable at 0x000140003225. Too many branches
-                    // WARNING: Treating indirect jump as call
-  pvVar1 = memcpy(_Dst,_Src,_Size);
-  return pvVar1;
-}
-
-
-
-// WARNING: This is an inlined function
-
-void _guard_dispatch_icall(void)
-
-{
-  code *UNRECOVERED_JUMPTABLE;
-  
-                    // WARNING: Could not recover jumptable at 0x000140003240. Too many branches
-                    // WARNING: Treating indirect jump as call
-  (*UNRECOVERED_JUMPTABLE)();
-  return;
 }
 
 
