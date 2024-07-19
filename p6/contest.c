@@ -141,6 +141,100 @@ void CTR_mode(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t num_enc){
     }
 }
 
+#define DEBUG_IMP 1
+
+void key_scheduling_IMP(uint8_t* MK, uint8_t* RK){
+    uint32_t i=0;
+        
+    //initialization
+    for(i=0;i<8;i++){
+        RK[i] = MK[i];
+    }
+        
+    for(i=1;i<NUM_ROUND;i++){
+        RK[i*8 + 0]= ROL( RK[(i-1)*8 + 0], (i+OFFSET1)%8) + ROL (CONSTANT0, (i+OFFSET3)%8);
+        RK[i*8 + 1]= ROL( RK[(i-1)*8 + 1], (i+OFFSET5)%8) + ROL (CONSTANT1, (i+OFFSET7)%8);
+        RK[i*8 + 2]= ROL( RK[(i-1)*8 + 2], (i+OFFSET1)%8) + ROL (CONSTANT2, (i+OFFSET3)%8);
+        RK[i*8 + 3]= ROL( RK[(i-1)*8 + 3], (i+OFFSET5)%8) + ROL (CONSTANT3, (i+OFFSET7)%8);
+        
+        RK[i*8 + 4]= ROL( RK[(i-1)*8 + 4], (i+OFFSET1)%8) + ROL (CONSTANT4, (i+OFFSET3)%8);
+        RK[i*8 + 5]= ROL( RK[(i-1)*8 + 5], (i+OFFSET5)%8) + ROL (CONSTANT5, (i+OFFSET7)%8);
+        RK[i*8 + 6]= ROL( RK[(i-1)*8 + 6], (i+OFFSET1)%8) + ROL (CONSTANT6, (i+OFFSET3)%8);
+        RK[i*8 + 7]= ROL( RK[(i-1)*8 + 7], (i+OFFSET5)%8) + ROL (CONSTANT7, (i+OFFSET7)%8);
+    }
+}
+
+//
+void ROUND_FUNC_IMP(uint8_t *intermediate, uint8_t *RK, uint8_t index, uint8_t loop_indx, uint8_t offset){
+    intermediate[index] = RK[loop_indx*8 + index] ^ intermediate[index];
+    intermediate[index] = RK[loop_indx*8 + index] ^ intermediate[index-1] + intermediate[index];
+    intermediate[index] = ROL(intermediate[index], offset);
+}
+    
+
+//
+void block_encryption_IMP(uint8_t* PT, uint8_t* RK, uint8_t* CT){
+    uint32_t i=0;
+    uint32_t j=0;
+    uint8_t intermediate[8]={0,};
+    uint8_t tmp=0;
+    
+    for(i=0;i<8;i++){
+        intermediate[i] = PT[i];
+    }
+    
+    for(i=0;i<NUM_ROUND;i++){
+        // ~1000 cyc
+        for(j=7;j>0;j--){
+            ROUND_FUNC_IMP(intermediate,RK,j,i,j);
+        }
+        
+        tmp = intermediate[0];
+        for(j=1;j<8;j++){
+            intermediate[j-1] = intermediate[j];
+        }
+        intermediate[7] = tmp;
+    }
+    
+    for(i=0;i<8;i++){
+        CT[i] = intermediate[i];
+    }
+    
+}
+
+void CTR_mode_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t num_enc){
+    uint32_t i=0;
+    uint32_t j=0;
+    uint8_t intermediate[8] ={0,};
+    uint8_t intermediate2[8] ={0,};
+    uint8_t ctr = 0;
+    
+    uint8_t RK[8* NUM_ROUND]={0,};
+    
+    //key schedule
+    key_scheduling_IMP(MK, RK); // ~6000 cyc
+    
+    //nonce setting
+    intermediate[1] = NONCE1;
+    intermediate[2] = NONCE2;
+    intermediate[3] = NONCE3;
+    intermediate[4] = NONCE4;
+    intermediate[5] = NONCE5;
+    intermediate[6] = NONCE6;
+    intermediate[7] = NONCE7;
+    
+    
+    // num_enc = bytes / 8 = 24
+    for(i=0;i<num_enc;i++){
+        //ctr setting
+        intermediate[0] = ctr++;
+        block_encryption_IMP(intermediate,RK,intermediate2); // ~ 10k cyc; total ~240k cyc?
+        for(j=0;j<8;j++){
+            CT[i*8+j] = PT[i*8+j] ^ intermediate2[j];
+        }
+    }
+}
+
 //
 void POLY_MUL_RED(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
     uint64_t* in1_64_p = (uint64_t*) IN1;
@@ -204,6 +298,68 @@ void AUTH_mode(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
     }
 }
 
+void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
+    uint64_t* in1_64_p = (uint64_t*) IN1;
+    uint64_t* in2_64_p = (uint64_t*) IN2;
+    uint64_t* out_64_p = (uint64_t*) OUT;
+    
+    uint64_t in1_64 = in1_64_p[0];
+    uint64_t in2_64 = in2_64_p[0];
+    uint64_t one = 1;
+    
+    uint64_t result[2] = {0,};
+    
+    int32_t i=0;
+    
+    for(i=0;i<64;i++){
+        if( (( one<<i ) & in1_64) > 0  ){
+            result[0] ^= in2_64<<i;
+            if(i!=0){
+                result[1] ^= in2_64>>(64-i);
+            }
+        }
+    }
+    
+    // reduction
+    result[0] ^= result[1];
+    result[0] ^= result[1]<<9;
+    result[0] ^= result[1]>>55;
+    result[0] ^= (result[1]>>55)<<9;
+    
+    out_64_p[0] = result[0];
+}
+
+//
+void AUTH_mode_IMP(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
+    uint8_t AUTH_nonce[8] = {0,};
+    uint8_t AUTH_inter[8] = {0,};
+    uint32_t i, j;
+    
+    //nonce setting
+    AUTH_nonce[0] = num_auth;
+    AUTH_nonce[1] = num_auth ^ NONCE1;
+    AUTH_nonce[2] = num_auth & NONCE2;
+    AUTH_nonce[3] = num_auth | NONCE3;
+    AUTH_nonce[4] = num_auth ^ NONCE4;
+    AUTH_nonce[5] = num_auth & NONCE5;
+    AUTH_nonce[6] = num_auth | NONCE6;
+    AUTH_nonce[7] = num_auth ^ NONCE7;
+    
+    POLY_MUL_RED_IMP(AUTH_nonce, AUTH_nonce, AUTH_inter);
+    
+    for(i=0;i<num_auth;i++){
+        for(j=0;j<8;j++){
+            AUTH_inter[j] ^= CT[i*8 + j];
+        }
+        POLY_MUL_RED_IMP(AUTH_nonce, AUTH_inter, AUTH_inter);
+        POLY_MUL_RED_IMP(AUTH_inter, AUTH_inter, AUTH_inter);
+    }
+    
+    for(i=0;i<8;i++){
+        AUTH[i] = AUTH_inter[i];
+    }
+}
+
 void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
     uint8_t num_enc_auth = length_in_byte / 8;
     
@@ -211,11 +367,17 @@ void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t leng
     AUTH_mode(CT,AUTH,num_enc_auth);
 }
 
+// ENC_AUTH(PT2, MK2, CT_TMP, AUTH_TMP, LENGTH2);
+// PT2 = uint8_t[192]
+// MK2 = uint8_t[8]
+// CT_TMP = uint8_t[192]
+// AUTH_TMP = uint8_t[8]
+// LENGTH2 = 192
 void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
-    //uint8_t num_enc_auth = length_in_byte / 8;
+    uint8_t num_enc_auth = length_in_byte / 8;
     
-    //CTR_mode(PT, MK, CT, num_enc_auth);
-    //AUTH_mode(CT,AUTH,num_enc_auth);
+    CTR_mode_IMP(PT, MK, CT, num_enc_auth); // ~300k
+    AUTH_mode_IMP(CT,AUTH,num_enc_auth); // ~20k
 }
 
 
@@ -351,6 +513,62 @@ int main(int argc, const char * argv[]) {
         AUTH_TMP[i] = 0;
     }    
     printf("test pass. \n");
+
+    if (DEBUG_IMP) {
+    printf("--- TEST VECTOR for imp ---\n");
+    
+    ENC_AUTH_IMP(PT0, MK0, CT_TMP, AUTH_TMP, LENGTH0);
+    
+    for(i=0;i<LENGTH0;i++){
+        if(CT_TMP[i] != CT0[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        CT_TMP[i] = 0;
+    }
+    for(i=0;i<8;i++){
+        if(AUTH_TMP[i] != AUTH0[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        AUTH_TMP[i] = 0;
+    }
+    
+    ENC_AUTH_IMP(PT1, MK1, CT_TMP, AUTH_TMP, LENGTH1);
+    
+    for(i=0;i<LENGTH1;i++){
+        if(CT_TMP[i] != CT1[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        CT_TMP[i] = 0;
+    }
+    for(i=0;i<8;i++){
+        if(AUTH_TMP[i] != AUTH1[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        AUTH_TMP[i] = 0;
+    }
+    
+    ENC_AUTH_IMP(PT2, MK2, CT_TMP, AUTH_TMP, LENGTH2);
+   
+    for(i=0;i<LENGTH2;i++){
+        if(CT_TMP[i] != CT2[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        CT_TMP[i] = 0;
+    }
+    for(i=0;i<8;i++){
+        if(AUTH_TMP[i] != AUTH2[i]){
+            printf("wrong result.\n");
+            return 0;
+        }
+        AUTH_TMP[i] = 0;
+    }    
+    printf("test pass. \n");
+    }
         
     printf("--- BENCHMARK ---\n");
     cycles=0;
