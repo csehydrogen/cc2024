@@ -15,14 +15,14 @@ int64_t cpucycles(void)
 }
 
 //BENCH ROUND
-#define BENCH_ROUND 1000
+#define BENCH_ROUND 10000
 
 // round of block cipher
 #define NUM_ROUND 80
 
 // basic operation
-#define ROR(x,r) ((x>>r) | (x<<(8-r)))
-#define ROL(x,r) ((x<<r) | (x>>(8-r)))
+#define ROR(x,r) (((x)>>(r)) | ((x)<<(8-(r))))
+#define ROL(x,r) (((x)<<(r)) | ((x)>>(8-(r))))
 
 // constant :: cryptogr in ASCII
 #define CONSTANT0 0x63
@@ -141,100 +141,6 @@ void CTR_mode(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t num_enc){
     }
 }
 
-#define DEBUG_IMP 1
-
-void key_scheduling_IMP(uint8_t* MK, uint8_t* RK){
-    uint32_t i=0;
-        
-    //initialization
-    for(i=0;i<8;i++){
-        RK[i] = MK[i];
-    }
-        
-    for(i=1;i<NUM_ROUND;i++){
-        RK[i*8 + 0]= ROL( RK[(i-1)*8 + 0], (i+OFFSET1)%8) + ROL (CONSTANT0, (i+OFFSET3)%8);
-        RK[i*8 + 1]= ROL( RK[(i-1)*8 + 1], (i+OFFSET5)%8) + ROL (CONSTANT1, (i+OFFSET7)%8);
-        RK[i*8 + 2]= ROL( RK[(i-1)*8 + 2], (i+OFFSET1)%8) + ROL (CONSTANT2, (i+OFFSET3)%8);
-        RK[i*8 + 3]= ROL( RK[(i-1)*8 + 3], (i+OFFSET5)%8) + ROL (CONSTANT3, (i+OFFSET7)%8);
-        
-        RK[i*8 + 4]= ROL( RK[(i-1)*8 + 4], (i+OFFSET1)%8) + ROL (CONSTANT4, (i+OFFSET3)%8);
-        RK[i*8 + 5]= ROL( RK[(i-1)*8 + 5], (i+OFFSET5)%8) + ROL (CONSTANT5, (i+OFFSET7)%8);
-        RK[i*8 + 6]= ROL( RK[(i-1)*8 + 6], (i+OFFSET1)%8) + ROL (CONSTANT6, (i+OFFSET3)%8);
-        RK[i*8 + 7]= ROL( RK[(i-1)*8 + 7], (i+OFFSET5)%8) + ROL (CONSTANT7, (i+OFFSET7)%8);
-    }
-}
-
-//
-void ROUND_FUNC_IMP(uint8_t *intermediate, uint8_t *RK, uint8_t index, uint8_t loop_indx, uint8_t offset){
-    intermediate[index] = RK[loop_indx*8 + index] ^ intermediate[index];
-    intermediate[index] = RK[loop_indx*8 + index] ^ intermediate[index-1] + intermediate[index];
-    intermediate[index] = ROL(intermediate[index], offset);
-}
-    
-
-//
-void block_encryption_IMP(uint8_t* PT, uint8_t* RK, uint8_t* CT){
-    uint32_t i=0;
-    uint32_t j=0;
-    uint8_t intermediate[8]={0,};
-    uint8_t tmp=0;
-    
-    for(i=0;i<8;i++){
-        intermediate[i] = PT[i];
-    }
-    
-    for(i=0;i<NUM_ROUND;i++){
-        // ~1000 cyc
-        for(j=7;j>0;j--){
-            ROUND_FUNC_IMP(intermediate,RK,j,i,j);
-        }
-        
-        tmp = intermediate[0];
-        for(j=1;j<8;j++){
-            intermediate[j-1] = intermediate[j];
-        }
-        intermediate[7] = tmp;
-    }
-    
-    for(i=0;i<8;i++){
-        CT[i] = intermediate[i];
-    }
-    
-}
-
-void CTR_mode_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t num_enc){
-    uint32_t i=0;
-    uint32_t j=0;
-    uint8_t intermediate[8] ={0,};
-    uint8_t intermediate2[8] ={0,};
-    uint8_t ctr = 0;
-    
-    uint8_t RK[8* NUM_ROUND]={0,};
-    
-    //key schedule
-    key_scheduling_IMP(MK, RK); // ~6000 cyc
-    
-    //nonce setting
-    intermediate[1] = NONCE1;
-    intermediate[2] = NONCE2;
-    intermediate[3] = NONCE3;
-    intermediate[4] = NONCE4;
-    intermediate[5] = NONCE5;
-    intermediate[6] = NONCE6;
-    intermediate[7] = NONCE7;
-    
-    
-    // num_enc = bytes / 8 = 24
-    for(i=0;i<num_enc;i++){
-        //ctr setting
-        intermediate[0] = ctr++;
-        block_encryption_IMP(intermediate,RK,intermediate2); // ~ 10k cyc; total ~240k cyc?
-        for(j=0;j<8;j++){
-            CT[i*8+j] = PT[i*8+j] ^ intermediate2[j];
-        }
-    }
-}
-
 //
 void POLY_MUL_RED(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
     uint64_t* in1_64_p = (uint64_t*) IN1;
@@ -298,7 +204,15 @@ void AUTH_mode(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
     }
 }
 
-void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
+void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
+    uint8_t num_enc_auth = length_in_byte / 8;
+    
+    CTR_mode(PT, MK, CT, num_enc_auth);
+    AUTH_mode(CT,AUTH,num_enc_auth);
+}
+
+inline void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
+    //__asm volatile("# LLVM-MCA-BEGIN foo":::"memory");
     uint64_t* in1_64_p = (uint64_t*) IN1;
     uint64_t* in2_64_p = (uint64_t*) IN2;
     uint64_t* out_64_p = (uint64_t*) OUT;
@@ -311,6 +225,9 @@ void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
     
     int32_t i=0;
     
+    // polynomial multiply: IN1 ~x^64 polynomial, IN2 ~x^64 polynomial, result[0, 1] ~x^128 polynomial result
+
+    #pragma GCC unroll 64
     for(i=0;i<64;i++){
         if( (( one<<i ) & in1_64) > 0  ){
             result[0] ^= in2_64<<i;
@@ -319,6 +236,7 @@ void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
             }
         }
     }
+
     
     // reduction
     result[0] ^= result[1];
@@ -327,45 +245,12 @@ void POLY_MUL_RED_IMP(uint8_t* IN1, uint8_t* IN2, uint8_t* OUT){
     result[0] ^= (result[1]>>55)<<9;
     
     out_64_p[0] = result[0];
+
+    //__asm volatile("# LLVM-MCA-END":::"memory");
 }
 
-//
-void AUTH_mode_IMP(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
-    uint8_t AUTH_nonce[8] = {0,};
-    uint8_t AUTH_inter[8] = {0,};
-    uint32_t i, j;
-    
-    //nonce setting
-    AUTH_nonce[0] = num_auth;
-    AUTH_nonce[1] = num_auth ^ NONCE1;
-    AUTH_nonce[2] = num_auth & NONCE2;
-    AUTH_nonce[3] = num_auth | NONCE3;
-    AUTH_nonce[4] = num_auth ^ NONCE4;
-    AUTH_nonce[5] = num_auth & NONCE5;
-    AUTH_nonce[6] = num_auth | NONCE6;
-    AUTH_nonce[7] = num_auth ^ NONCE7;
-    
-    POLY_MUL_RED_IMP(AUTH_nonce, AUTH_nonce, AUTH_inter);
-    
-    for(i=0;i<num_auth;i++){
-        for(j=0;j<8;j++){
-            AUTH_inter[j] ^= CT[i*8 + j];
-        }
-        POLY_MUL_RED_IMP(AUTH_nonce, AUTH_inter, AUTH_inter);
-        POLY_MUL_RED_IMP(AUTH_inter, AUTH_inter, AUTH_inter);
-    }
-    
-    for(i=0;i<8;i++){
-        AUTH[i] = AUTH_inter[i];
-    }
-}
+#define DEBUG_IMP 1
 
-void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
-    uint8_t num_enc_auth = length_in_byte / 8;
-    
-    CTR_mode(PT, MK, CT, num_enc_auth);
-    AUTH_mode(CT,AUTH,num_enc_auth);
-}
 
 // ENC_AUTH(PT2, MK2, CT_TMP, AUTH_TMP, LENGTH2);
 // PT2 = uint8_t[192]
@@ -374,10 +259,133 @@ void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t leng
 // AUTH_TMP = uint8_t[8]
 // LENGTH2 = 192
 void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
+    uint8_t RK_CONSTS[8][8] = {
+        0x1B,0x39,0xCB,0x38,0xA3,0xB7,0x3B,0x39,
+        0x36,0x72,0x97,0x70,0x47,0x6F,0x76,0x72,
+        0x6C,0xE4,0x2F,0xE0,0x8E,0xDE,0xEC,0xE4,
+        0xD8,0xC9,0x5E,0xC1,0x1D,0xBD,0xD9,0xC9,
+        0xB1,0x93,0xBC,0x83,0x3A,0x7B,0xB3,0x93,
+        0x63,0x27,0x79,0x07,0x74,0xF6,0x67,0x27,
+        0xC6,0x4E,0xF2,0x0E,0xE8,0xED,0xCE,0x4E,
+        0x8D,0x9C,0xE5,0x1C,0xD1,0xDB,0x9D,0x9C,
+    };
+
     uint8_t num_enc_auth = length_in_byte / 8;
     
-    CTR_mode_IMP(PT, MK, CT, num_enc_auth); // ~300k
-    AUTH_mode_IMP(CT,AUTH,num_enc_auth); // ~20k
+
+    uint32_t i=0;
+    uint32_t j=0;
+    uint8_t intermediate[8] ={0,};
+    uint8_t intermediate2[8] ={0,};
+    uint8_t ctr = 0;
+    
+    //nonce setting
+    intermediate[1] = NONCE1;
+    intermediate[2] = NONCE2;
+    intermediate[3] = NONCE3;
+    intermediate[4] = NONCE4;
+    intermediate[5] = NONCE5;
+    intermediate[6] = NONCE6;
+    intermediate[7] = NONCE7;
+
+    uint8_t RK[NUM_ROUND][8];
+    #pragma GCC unroll 8
+    for (int i = 0; i < 8; ++i) {
+        RK[0][i] = MK[i];
+    }
+    
+    #pragma GCC unroll 80
+    for (i = 1; i < NUM_ROUND; i++) {
+        RK[i][0]= ROL( RK[i - 1][0], (i+OFFSET1)%8) + RK_CONSTS[i&0x7][0];
+        RK[i][1]= ROL( RK[i - 1][1], (i+OFFSET5)%8) + RK_CONSTS[i&0x7][1];
+        RK[i][2]= ROL( RK[i - 1][2], (i+OFFSET1)%8) + RK_CONSTS[i&0x7][2];
+        RK[i][3]= ROL( RK[i - 1][3], (i+OFFSET5)%8) + RK_CONSTS[i&0x7][3];
+        RK[i][4]= ROL( RK[i - 1][4], (i+OFFSET1)%8) + RK_CONSTS[i&0x7][4];
+        RK[i][5]= ROL( RK[i - 1][5], (i+OFFSET5)%8) + RK_CONSTS[i&0x7][5];
+        RK[i][6]= ROL( RK[i - 1][6], (i+OFFSET1)%8) + RK_CONSTS[i&0x7][6];
+        RK[i][7]= ROL( RK[i - 1][7], (i+OFFSET5)%8) + RK_CONSTS[i&0x7][7];
+    }
+    
+    // num_enc = bytes / 8 = 24
+    for(int i=0;i<num_enc_auth;i++){
+        //ctr setting
+        intermediate[0] = ctr++;
+        {
+            uint8_t asdf[8]={0,};
+            uint8_t tmp=0;
+            #pragma GCC unroll 8
+            for(int i=0;i<8;i++){
+                asdf[i] = intermediate[i];
+            }
+            #pragma GCC unroll 80
+            for(int r=0;r<NUM_ROUND;r++){
+                //__asm volatile("# LLVM-MCA-BEGIN foo":::"memory");
+                // ~100 cyc
+                #pragma GCC unroll 7
+                for(int j=7;j>0;j--){
+                    uint8_t t = RK[r][j] ^ (asdf[j-1] + (RK[r][j] ^ asdf[j]));
+                    asdf[j] = ROL(t, j);
+                }
+                tmp = asdf[0];
+                #pragma GCC unroll 7
+                for(int j=1;j<8;j++){
+                    asdf[j-1] = asdf[j];
+                }
+                asdf[7] = tmp;
+                //__asm volatile("# LLVM-MCA-END":::"memory");
+                //if (r == 1) {
+                //    printf("msg idx %d round %d ", i, r);
+                //    for (int k = 0; k < 8; ++k) {
+                //        printf("%02X ", asdf[k]);
+
+                //    }
+                //    printf("\n");
+                //}
+            }
+            
+            #pragma GCC unroll 8
+            for(int i=0;i<8;i++){
+                intermediate2[i] = asdf[i];
+            }
+        }
+        #pragma GCC unroll 8
+        for(j=0;j<8;j++){
+            CT[i*8+j] = PT[i*8+j] ^ intermediate2[j];
+        }
+    }
+    {
+        int num_auth = num_enc_auth;
+        uint8_t AUTH_nonce[8] = {0,};
+        uint8_t AUTH_inter[8] = {0,};
+        uint32_t i, j;
+        
+        //nonce setting
+        AUTH_nonce[0] = num_auth;
+        AUTH_nonce[1] = num_auth ^ NONCE1;
+        AUTH_nonce[2] = num_auth & NONCE2;
+        AUTH_nonce[3] = num_auth | NONCE3;
+        AUTH_nonce[4] = num_auth ^ NONCE4;
+        AUTH_nonce[5] = num_auth & NONCE5;
+        AUTH_nonce[6] = num_auth | NONCE6;
+        AUTH_nonce[7] = num_auth ^ NONCE7;
+        
+        POLY_MUL_RED_IMP(AUTH_nonce, AUTH_nonce, AUTH_inter);
+        
+        for(i=0;i<num_auth;i++){
+            #pragma GCC unroll 8
+            for(j=0;j<8;j++){
+                AUTH_inter[j] ^= CT[i*8 + j];
+            }
+            POLY_MUL_RED_IMP(AUTH_nonce, AUTH_inter, AUTH_inter);
+            POLY_MUL_RED_IMP(AUTH_inter, AUTH_inter, AUTH_inter);
+        }
+        
+        #pragma GCC unroll 8
+        for(i=0;i<8;i++){
+            AUTH[i] = AUTH_inter[i];
+        }
+
+    }
 }
 
 
@@ -571,6 +579,7 @@ int main(int argc, const char * argv[]) {
     }
         
     printf("--- BENCHMARK ---\n");
+for (int iter = 0; iter < 2; ++iter) {
     cycles=0;
     cycles1 = cpucycles();
     for(i=0;i<BENCH_ROUND;i++){
@@ -590,6 +599,7 @@ int main(int argc, const char * argv[]) {
     cycles = cycles2-cycles1;
     printf("Improved implementation runs in ................. %8lld cycles", cycles/BENCH_ROUND);
     printf("\n");
+}
     
     return 0;
 }
