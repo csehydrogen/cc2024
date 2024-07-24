@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 #include <stdlib.h>
-#include <sys/types.h>
 #include <time.h>
 
 int64_t cpucycles(void)
@@ -16,7 +15,7 @@ int64_t cpucycles(void)
 }
 
 //BENCH ROUND
-#define BENCH_ROUND 10000
+#define BENCH_ROUND 20000
 
 // round of block cipher
 #define NUM_ROUND 80
@@ -212,55 +211,40 @@ void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t leng
     AUTH_mode(CT,AUTH,num_enc_auth);
 }
 
-inline uint8_t rol8(uint8_t x, uint8_t r) {
+// EDIT START
+
+static inline uint8_t rol8(uint8_t x, uint8_t r) {
   return (x << r) | (x >> (8 - r));
 }
 
-inline uint64_t rol64(uint64_t x, uint8_t r) {
+static inline uint64_t rol64(uint64_t x, uint8_t r) {
   switch (r) {
-    /*
-  0xFEFEFEFEFEFEFEFE, 0x0101010101010101
-0xFCFCFCFCFCFCFCFC, 0x0303030303030303
-0xF8F8F8F8F8F8F8F8, 0x0707070707070707
-0xF0F0F0F0F0F0F0F0, 0x0F0F0F0F0F0F0F0F
-0xE0E0E0E0E0E0E0E0, 0x1F1F1F1F1F1F1F1F
-0xC0C0C0C0C0C0C0C0, 0x3F3F3F3F3F3F3F3F
-0x8080808080808080, 0x7F7F7F7F7F7F7F7F
-*/
-    case 1:
-      return ((x << 1) & 0xFEFEFEFEFEFEFEFE) | ((x >> 7) & 0x0101010101010101);
-    case 2:
-      return ((x << 2) & 0xFCFCFCFCFCFCFCFC) | ((x >> 6) & 0x0303030303030303);
-    case 3:
-      return ((x << 3) & 0xF8F8F8F8F8F8F8F8) | ((x >> 5) & 0x0707070707070707);
-    case 4:
-      return ((x << 4) & 0xF0F0F0F0F0F0F0F0) | ((x >> 4) & 0x0F0F0F0F0F0F0F0F);
-    case 5:
-      return ((x << 5) & 0xE0E0E0E0E0E0E0E0) | ((x >> 3) & 0x1F1F1F1F1F1F1F1F);
-    case 6:
-      return ((x << 6) & 0xC0C0C0C0C0C0C0C0) | ((x >> 2) & 0x3F3F3F3F3F3F3F3F);
-    case 7:
-      return ((x << 7) & 0x8080808080808080) | ((x >> 1) & 0x7F7F7F7F7F7F7F7F);
+    case 0: return x;
+    case 1: return ((x << 1) & 0xFEFEFEFEFEFEFEFE) | ((x >> 7) & 0x0101010101010101);
+    case 2: return ((x << 2) & 0xFCFCFCFCFCFCFCFC) | ((x >> 6) & 0x0303030303030303);
+    case 3: return ((x << 3) & 0xF8F8F8F8F8F8F8F8) | ((x >> 5) & 0x0707070707070707);
+    case 4: return ((x << 4) & 0xF0F0F0F0F0F0F0F0) | ((x >> 4) & 0x0F0F0F0F0F0F0F0F);
+    case 5: return ((x << 5) & 0xE0E0E0E0E0E0E0E0) | ((x >> 3) & 0x1F1F1F1F1F1F1F1F);
+    case 6: return ((x << 6) & 0xC0C0C0C0C0C0C0C0) | ((x >> 2) & 0x3F3F3F3F3F3F3F3F);
+    case 7: return ((x << 7) & 0x8080808080808080) | ((x >> 1) & 0x7F7F7F7F7F7F7F7F);
   }
 }
 
-inline uint64_t bytewise_add(uint64_t a, uint64_t b) {
+static inline uint64_t pack64(uint8_t x0, uint8_t x1, uint8_t x2, uint8_t x3, uint8_t x4, uint8_t x5, uint8_t x6, uint8_t x7) {
+  return x0 | ((uint64_t)x1 << 8) | ((uint64_t)x2 << 16) | ((uint64_t)x3 << 24) | ((uint64_t)x4 << 32) | ((uint64_t)x5 << 40) | ((uint64_t)x6 << 48) | ((uint64_t)x7 << 56);
+}
+
+// compiled to paddb
+static inline uint64_t bytewise_add(uint64_t a, uint64_t b) {
   uint64_t c;
   for (int i = 0; i < 8; ++i) {
     ((uint8_t*)&c)[i] = ((uint8_t*)&a)[i] + ((uint8_t*)&b)[i];
   }
   return c;
-  //return (((a & 0xFF) + (b & 0xFF)) & 0xFF)
-  //  | (((a & 0xFF00) + (b & 0xFF00)) & 0xFF00)
-  //  | (((a & 0xFF0000) + (b & 0xFF0000)) & 0xFF0000)
-  //  | (((a & 0xFF000000) + (b & 0xFF000000)) & 0xFF000000)
-  //  | (((a & 0xFF00000000) + (b & 0xFF00000000)) & 0xFF00000000)
-  //  | (((a & 0xFF0000000000) + (b & 0xFF0000000000)) & 0xFF0000000000)
-  //  | (((a & 0xFF000000000000) + (b & 0xFF000000000000)) & 0xFF000000000000)
-  //  | (((a & 0xFF00000000000000) + (b & 0xFF00000000000000)) & 0xFF00000000000000);
 }
 
-inline uint64_t bytewise_xor(uint8_t a, uint64_t b) {
+// compiled to pshuflw and pxor
+static inline uint64_t bytewise_xor(uint8_t a, uint64_t b) {
   uint64_t c;
   for (int i = 0; i < 8; ++i) {
     ((uint8_t*)&c)[i] = a ^ ((uint8_t*)&b)[i];
@@ -268,92 +252,11 @@ inline uint64_t bytewise_xor(uint8_t a, uint64_t b) {
   return c;
 }
 
-inline uint64_t dup8(uint8_t a) {
+static inline uint64_t dup8(uint8_t a) {
   return a * 0x0101010101010101;
 }
 
-uint8_t carryless_mul_8b(uint8_t a, uint8_t b) {
-  uint16_t c = 0;
-  #pragma GCC unroll 8
-  for (int i = 0; i < 8; i++) {
-    if (((1L << i) & a) > 0) {
-      c ^= (uint16_t)b << i;
-    }
-  }
-  return c;
-}
-
-inline uint32_t carryless_mul_16b(uint16_t a, uint16_t b) {
-  uint32_t c = 0;
-  #pragma GCC unroll 16
-  for (int i = 0; i < 16; i++) {
-    if (((1L << i) & a) > 0) {
-      c ^= (uint32_t)b << i;
-    }
-  }
-  return c;
-}
-
-inline uint64_t carryless_mul_32b_kara(uint32_t a, uint32_t b) {
-  uint16_t al = a;
-  uint16_t ah = a >> 16;
-  uint16_t bl = b;
-  uint16_t bh = b >> 16;
-  uint32_t z0 = carryless_mul_16b(al, bl);
-  uint32_t z2 = carryless_mul_16b(ah, bh);
-  uint32_t z1 = carryless_mul_16b(al ^ ah, bl ^ bh) ^ z0 ^ z2;
-  return z0 ^ ((uint64_t)z1 << 16) ^ ((uint64_t)z2 << 32);
-}
-
-inline uint64_t carryless_mul_32b(uint32_t a, uint32_t b) {
-  uint64_t c = 0;
-  #pragma GCC unroll 32
-  for (int i = 0; i < 32; i++) {
-    if (((1L << i) & a) > 0) {
-      c ^= (uint64_t)b << i;
-    }
-  }
-  return c;
-}
-
-inline void POLY_MUL_RED_IMP(uint8_t *IN1, uint8_t *IN2, uint8_t *OUT) {
-  uint64_t p1 = *(uint64_t *)IN1;
-  uint64_t p2 = *(uint64_t *)IN2;
-  uint64_t result0 = 0, result1 = 0;
-
-  // polynomial multiply: IN1 ~x^64 polynomial, IN2 ~x^64 polynomial, result[0, 1] ~x^128 polynomial result
-
-  uint32_t p1l = p1;
-  uint32_t p1h = p1 >> 32;
-  uint32_t p2l = p2;
-  uint32_t p2h = p2 >> 32;
-
-  uint64_t z0 = carryless_mul_32b(p1l, p2l);
-  uint64_t z2 = carryless_mul_32b(p1h, p2h);
-  uint64_t z1 = carryless_mul_32b(p1l ^ p1h, p2l ^ p2h) ^ z0 ^ z2;
-  result0 = z0 ^ (z1 << 32);
-  result1 = (z1 >> 32) ^ z2;
-
-  //#pragma GCC unroll 64
-  //for (int i = 0; i < 64; i++) {
-  //  if (((1L << i) & p1) > 0) {
-  //    result0 ^= p2 << i;
-  //    if (i != 0) {
-  //      result1 ^= p2 >> (64 - i);
-  //    }
-  //  }
-  //}
-
-  // reduction
-  result0 ^= result1;
-  result0 ^= result1 << 9;
-  result0 ^= result1 >> 55;
-  result0 ^= (result1 >> 55) << 9;
-
-  *(uint64_t*)OUT = result0;
-}
-
-inline uint64_t carryless_mul_32b_SQ(uint32_t a) {
+static inline uint64_t clsq_32b(uint32_t a) {
   uint64_t c = 0;
   #pragma GCC unroll 32
   for (int i = 0; i < 32; i++) {
@@ -364,48 +267,28 @@ inline uint64_t carryless_mul_32b_SQ(uint32_t a) {
   return c;
 }
 
-inline void POLY_MUL_RED_IMP_SQ(uint8_t *IN1, uint8_t *OUT) {
-  uint64_t p1 = *(uint64_t *)IN1;
-  uint64_t result0 = 0, result1 = 0;
-
-  // polynomial multiply: IN1 ~x^64 polynomial, IN2 ~x^64 polynomial, result[0, 1] ~x^128 polynomial result
-
+static inline void POLY_MUL_RED_IMP_SQ(uint8_t *INOUT) {
+  uint64_t p1 = *(uint64_t *)INOUT;
   uint32_t p1l = p1;
   uint32_t p1h = p1 >> 32;
-
-  uint64_t z0 = carryless_mul_32b_SQ(p1l);
-  uint64_t z2 = carryless_mul_32b_SQ(p1h);
-  uint64_t z1 = carryless_mul_32b_SQ(p1l ^ p1h) ^ z0 ^ z2;
-  result0 = z0 ^ (z1 << 32);
-  result1 = (z1 >> 32) ^ z2;
-
-  //#pragma GCC unroll 64
-  //for (int i = 0; i < 64; i++) {
-  //  if (((1L << i) & p1) > 0) {
-  //    result0 ^= p2 << i;
-  //    if (i != 0) {
-  //      result1 ^= p2 >> (64 - i);
-  //    }
-  //  }
-  //}
-
-  // reduction
+  uint64_t z0 = clsq_32b(p1l);
+  uint64_t z2 = clsq_32b(p1h);
+  uint64_t z1 = clsq_32b(p1l ^ p1h) ^ z0 ^ z2;
+  uint64_t result0 = z0 ^ (z1 << 32);
+  uint64_t result1 = (z1 >> 32) ^ z2;
   result0 ^= result1;
   result0 ^= result1 << 9;
   result0 ^= result1 >> 55;
   result0 ^= (result1 >> 55) << 9;
-
-  *(uint64_t*)OUT = result0;
+  *(uint64_t*)INOUT = result0;
 }
 
 #define DB_SIZE 256
 #define DB_SIZE_LOG 8
 
-inline void POLY_MUL_RED_IMP_DB(uint8_t *IN2, uint8_t *OUT, uint64_t(* db)[2]) {
-  uint64_t p2 = *(uint64_t *)IN2;
+static inline void POLY_MUL_RED_IMP_DB(uint8_t *INOUT, uint64_t (*db)[2]) {
+  uint64_t p2 = *(uint64_t *)INOUT;
   uint64_t result0 = 0, result1 = 0;
-
-  // polynomial multiply: IN1 ~x^64 polynomial, IN2 ~x^64 polynomial, result[0, 1] ~x^128 polynomial result
   #pragma GCC unroll 16
   for (int i = 0; i < 64; i+= DB_SIZE_LOG) {
     uint64_t L = db[(p2 >> i) & (DB_SIZE - 1)][0];
@@ -414,88 +297,54 @@ inline void POLY_MUL_RED_IMP_DB(uint8_t *IN2, uint8_t *OUT, uint64_t(* db)[2]) {
     if (i > 0) result1 ^= L >> (64 - i); 
     result1 ^= H << i; 
   }
-
-  // reduction
   result0 ^= result1;
   result0 ^= result1 << 9;
   result0 ^= result1 >> 55;
   result0 ^= (result1 >> 55) << 9;
-
-  *(uint64_t*)OUT = result0;
+  *(uint64_t*)INOUT = result0;
 }
 
 #define DEBUG_IMP 1
 #define DEBUG_PERF 1
 
-// ENC_AUTH(PT2, MK2, CT_TMP, AUTH_TMP, LENGTH2);
-// PT2 = uint8_t[192]
-// MK2 = uint8_t[8]
-// CT_TMP = uint8_t[192]
-// AUTH_TMP = uint8_t[8]
-// LENGTH2 = 192
 int64_t st, keygen, ctr, auth;
-const uint64_t RK_CONSTS_64[8] = {0x393BB7A338CB391B,0x72766F4770977236,0xE4ECDE8EE02FE46C,0xC9D9BD1DC15EC9D8,0x93B37B3A83BC93B1,0x2767F67407792763,0x4ECEEDE80EF24EC6,0x9C9DDBD11CE59C8D};
-const uint64_t NONCE18 = 0x1212121212121212;
-const uint64_t NONCE28 = 0x3434343434343434;
-const uint64_t NONCE38 = 0x5656565656565656;
-const uint64_t NONCE48 = 0x7878787878787878;
-const uint64_t NONCE58 = 0x9A9A9A9A9A9A9A9A;
-const uint64_t NONCE68 = 0xBCBCBCBCBCBCBCBC;
-const uint64_t NONCE78 = 0xDEDEDEDEDEDEDEDE;
 
-void ENC_AUTH_IMP(uint8_t* restrict PT, uint8_t* restrict MK, uint8_t* restrict CT, uint8_t* restrict AUTH, uint8_t length_in_byte){
+void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
   #ifdef DEBUG_PERF
   st = cpucycles();
   #endif
 
-  uint8_t(*RK_CONSTS)[8] = (uint8_t(*)[8])RK_CONSTS_64;
   uint8_t num_enc_auth = length_in_byte / 8;
-
   uint8_t RK[NUM_ROUND][8];
-  #pragma GCC unroll 8
-  for (int i = 0; i < 8; ++i) {
-    RK[0][i] = MK[i];
-  }
+  *(uint64_t*)RK = *(uint64_t*)MK;
 
   #pragma GCC unroll 79
   for (int i = 1; i < NUM_ROUND; i++) {
-    RK[i][0] = rol8(RK[i - 1][0], (i + OFFSET1) % 8) + RK_CONSTS[i & 0x7][0];
-    RK[i][1] = rol8(RK[i - 1][1], (i + OFFSET5) % 8) + RK_CONSTS[i & 0x7][1];
-    RK[i][2] = rol8(RK[i - 1][2], (i + OFFSET1) % 8) + RK_CONSTS[i & 0x7][2];
-    RK[i][3] = rol8(RK[i - 1][3], (i + OFFSET5) % 8) + RK_CONSTS[i & 0x7][3];
-    RK[i][4] = rol8(RK[i - 1][4], (i + OFFSET1) % 8) + RK_CONSTS[i & 0x7][4];
-    RK[i][5] = rol8(RK[i - 1][5], (i + OFFSET5) % 8) + RK_CONSTS[i & 0x7][5];
-    RK[i][6] = rol8(RK[i - 1][6], (i + OFFSET1) % 8) + RK_CONSTS[i & 0x7][6];
-    RK[i][7] = rol8(RK[i - 1][7], (i + OFFSET5) % 8) + RK_CONSTS[i & 0x7][7];
+    RK[i][0] = rol8(RK[i - 1][0], (i + OFFSET1) % 8) + rol8(CONSTANT0, (i + OFFSET3) % 8);
+    RK[i][1] = rol8(RK[i - 1][1], (i + OFFSET5) % 8) + rol8(CONSTANT1, (i + OFFSET7) % 8);
+    RK[i][2] = rol8(RK[i - 1][2], (i + OFFSET1) % 8) + rol8(CONSTANT2, (i + OFFSET3) % 8);
+    RK[i][3] = rol8(RK[i - 1][3], (i + OFFSET5) % 8) + rol8(CONSTANT3, (i + OFFSET7) % 8);
+    RK[i][4] = rol8(RK[i - 1][4], (i + OFFSET1) % 8) + rol8(CONSTANT4, (i + OFFSET3) % 8);
+    RK[i][5] = rol8(RK[i - 1][5], (i + OFFSET5) % 8) + rol8(CONSTANT5, (i + OFFSET7) % 8);
+    RK[i][6] = rol8(RK[i - 1][6], (i + OFFSET1) % 8) + rol8(CONSTANT6, (i + OFFSET3) % 8);
+    RK[i][7] = rol8(RK[i - 1][7], (i + OFFSET5) % 8) + rol8(CONSTANT7, (i + OFFSET7) % 8);
   }
-
-  //uint64_t RK64[NUM_ROUND][8];
-  //for (int i = 0; i < NUM_ROUND; i++) {
-  //  for (int j = 0; j < 8; ++j){
-  //    RK64[i][j] = dup8(RK[i][j]);
-  //  }
-  //}
 
   #ifdef DEBUG_PERF
   keygen = cpucycles();
   #endif
 
-  // num_enc = bytes / 8 = 24
   for (int i = 0; i < num_enc_auth / 8; i++) {
     uint64_t tmp[8];
-    #pragma GCC unroll 8
-    for (int j = 0; j < 8; ++j) {
-      ((uint8_t*)(&tmp[0]))[j] = i * 8 + j;
-    }
-    tmp[1] = NONCE18;
-    tmp[2] = NONCE28;
-    tmp[3] = NONCE38;
-    tmp[4] = NONCE48;
-    tmp[5] = NONCE58;
-    tmp[6] = NONCE68;
-    tmp[7] = NONCE78;
+    tmp[0] = pack64(i * 8 + 0, i * 8 + 1, i * 8 + 2, i * 8 + 3, i * 8 + 4, i * 8 + 5, i * 8 + 6, i * 8 + 7);
+    tmp[1] = dup8(NONCE1);
+    tmp[2] = dup8(NONCE2);
+    tmp[3] = dup8(NONCE3);
+    tmp[4] = dup8(NONCE4);
+    tmp[5] = dup8(NONCE5);
+    tmp[6] = dup8(NONCE6);
+    tmp[7] = dup8(NONCE7);
 
-    #pragma GCC unroll 80
     for (int r = 0; r < NUM_ROUND; r++) {
       uint64_t tmp0 = tmp[0];
       tmp[0] = rol64(dup8(RK[r][1]) ^ bytewise_add(tmp[0], dup8(RK[r][1]) ^ tmp[1]), 1);
@@ -505,27 +354,11 @@ void ENC_AUTH_IMP(uint8_t* restrict PT, uint8_t* restrict MK, uint8_t* restrict 
       tmp[4] = rol64(dup8(RK[r][5]) ^ bytewise_add(tmp[4], dup8(RK[r][5]) ^ tmp[5]), 5);
       tmp[5] = rol64(dup8(RK[r][6]) ^ bytewise_add(tmp[5], dup8(RK[r][6]) ^ tmp[6]), 6);
       tmp[6] = rol64(dup8(RK[r][7]) ^ bytewise_add(tmp[6], dup8(RK[r][7]) ^ tmp[7]), 7);
-
-      //tmp[0] = rol64(RK64[r][1] ^ bytewise_add(tmp[0], RK64[r][1] ^ tmp[1]), 1);
-      //tmp[1] = rol64(RK64[r][2] ^ bytewise_add(tmp[1], RK64[r][2] ^ tmp[2]), 2);
-      //tmp[2] = rol64(RK64[r][3] ^ bytewise_add(tmp[2], RK64[r][3] ^ tmp[3]), 3);
-      //tmp[3] = rol64(RK64[r][4] ^ bytewise_add(tmp[3], RK64[r][4] ^ tmp[4]), 4);
-      //tmp[4] = rol64(RK64[r][5] ^ bytewise_add(tmp[4], RK64[r][5] ^ tmp[5]), 5);
-      //tmp[5] = rol64(RK64[r][6] ^ bytewise_add(tmp[5], RK64[r][6] ^ tmp[6]), 6);
-      //tmp[6] = rol64(RK64[r][7] ^ bytewise_add(tmp[6], RK64[r][7] ^ tmp[7]), 7);
-
-      //tmp[0] = rol64(bytewise_xor(RK[r][1], bytewise_add(tmp[0], bytewise_xor(RK[r][1], tmp[1]))), 1);
-      //tmp[1] = rol64(bytewise_xor(RK[r][2], bytewise_add(tmp[1], bytewise_xor(RK[r][2], tmp[2]))), 2);
-      //tmp[2] = rol64(bytewise_xor(RK[r][3], bytewise_add(tmp[2], bytewise_xor(RK[r][3], tmp[3]))), 3);
-      //tmp[3] = rol64(bytewise_xor(RK[r][4], bytewise_add(tmp[3], bytewise_xor(RK[r][4], tmp[4]))), 4);
-      //tmp[4] = rol64(bytewise_xor(RK[r][5], bytewise_add(tmp[4], bytewise_xor(RK[r][5], tmp[5]))), 5);
-      //tmp[5] = rol64(bytewise_xor(RK[r][6], bytewise_add(tmp[5], bytewise_xor(RK[r][6], tmp[6]))), 6);
-      //tmp[6] = rol64(bytewise_xor(RK[r][7], bytewise_add(tmp[6], bytewise_xor(RK[r][7], tmp[7]))), 7);
       tmp[7] = tmp0;
     }
+
     #pragma GCC unroll 8
     for (int j = 0; j < 8; j++) {
-      #pragma GCC unroll 8
       for (int k = 0; k < 8; ++k) {
         CT[i * 64 + j * 8 + k] = PT[i * 64 + j * 8 + k] ^ ((uint8_t*)&tmp[k])[j];
       }
@@ -536,35 +369,26 @@ void ENC_AUTH_IMP(uint8_t* restrict PT, uint8_t* restrict MK, uint8_t* restrict 
   ctr = cpucycles();
   #endif
 
-  uint64_t CMUL_DB[DB_SIZE][2] = {0};
-  // nonce gen
-  uint64_t H =
-    num_enc_auth
-    | (num_enc_auth ^ NONCE1) << 8
-    | (num_enc_auth & NONCE2) << 16
-    | (num_enc_auth | NONCE3) << 24
-    | ((uint64_t)num_enc_auth ^ NONCE4) << 32
-    | ((uint64_t)num_enc_auth & NONCE5) << 40
-    | ((uint64_t)num_enc_auth | NONCE6) << 48
-    | ((uint64_t)num_enc_auth ^ NONCE7) << 56;
+  uint64_t CMUL_DB[DB_SIZE][2];
+  uint64_t H = pack64(num_enc_auth, num_enc_auth ^ NONCE1, num_enc_auth & NONCE2, num_enc_auth | NONCE3, num_enc_auth ^ NONCE4, num_enc_auth & NONCE5, num_enc_auth | NONCE6, num_enc_auth ^ NONCE7);
 
-  // fill 2^n DB
+  CMUL_DB[0][0] = 0;
+  CMUL_DB[0][1] = 0;
   for (int i = 1, j = 0; i < DB_SIZE; i *= 2, ++j) {
     CMUL_DB[i][0] = H << j;
-    if (j > 0) CMUL_DB[i][1] = H >> (64 - j);
-    for (int k = i + 1; k < 2 * i && k < DB_SIZE; ++k) {
+    CMUL_DB[i][1] = j > 0 ? H >> (64 - j) : 0;
+    for (int k = i + 1; k < 2 * i; ++k) {
       CMUL_DB[k][0] = CMUL_DB[k - i][0] ^ CMUL_DB[i][0];
       CMUL_DB[k][1] = CMUL_DB[k - i][1] ^ CMUL_DB[i][1];
     }
   }
 
   *(uint64_t*)AUTH = H;
-  POLY_MUL_RED_IMP_DB(AUTH, AUTH, CMUL_DB);
-
+  POLY_MUL_RED_IMP_DB(AUTH, CMUL_DB);
   for (int i = 0; i < num_enc_auth; i++) {
     *(uint64_t*)AUTH ^= *(uint64_t*)&CT[i * 8];
-    POLY_MUL_RED_IMP_DB(AUTH, AUTH, CMUL_DB);
-    POLY_MUL_RED_IMP_SQ(AUTH, AUTH);
+    POLY_MUL_RED_IMP_DB(AUTH, CMUL_DB);
+    POLY_MUL_RED_IMP_SQ(AUTH);
   }
 
   #ifdef DEBUG_PERF
@@ -572,6 +396,7 @@ void ENC_AUTH_IMP(uint8_t* restrict PT, uint8_t* restrict MK, uint8_t* restrict 
   #endif
 }
 
+// EDIT END
 
 //PT range (1-255 bytes)
 #define LENGTH0 64
