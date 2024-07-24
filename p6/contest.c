@@ -14,15 +14,18 @@ int64_t cpucycles(void)
         return ((int64_t)lo) | (((int64_t)hi) << 32);
 }
 
+#define DEBUG_IMP 1
+#define DEBUG_PERF 0
+
 //BENCH ROUND
-#define BENCH_ROUND 20000
+#define BENCH_ROUND 100000
 
 // round of block cipher
 #define NUM_ROUND 80
 
 // basic operation
-#define ROR(x,r) (((x)>>(r)) | ((x)<<(8-(r))))
-#define ROL(x,r) (((x)<<(r)) | ((x)>>(8-(r))))
+#define ROR(x,r) ((x>>r) | (x<<(8-r)))
+#define ROL(x,r) ((x<<r) | (x>>(8-r)))
 
 // constant :: cryptogr in ASCII
 #define CONSTANT0 0x63
@@ -204,11 +207,24 @@ void AUTH_mode(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
     }
 }
 
+#if DEBUG_PERF
+int64_t ta, tb, tc;
+#endif
+
 void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
+#if DEBUG_PERF
+    ta = cpucycles();
+#endif
     uint8_t num_enc_auth = length_in_byte / 8;
     
     CTR_mode(PT, MK, CT, num_enc_auth);
+#if DEBUG_PERF
+    tb = cpucycles();
+#endif
     AUTH_mode(CT,AUTH,num_enc_auth);
+#if DEBUG_PERF
+    tc = cpucycles();
+#endif
 }
 
 // EDIT START
@@ -260,7 +276,7 @@ static inline uint64_t clsq_32b(uint32_t a) {
   uint64_t c = 0;
   #pragma GCC unroll 32
   for (int i = 0; i < 32; i++) {
-    if (((1L << i) & a) > 0) {
+    if (((1 << i) & a) > 0) {
       c ^= (uint64_t)a << i;
     }
   }
@@ -286,17 +302,20 @@ static inline void POLY_MUL_RED_IMP_SQ(uint8_t *INOUT) {
 #define DB_SIZE 256
 #define DB_SIZE_LOG 8
 
-static inline void POLY_MUL_RED_IMP_DB(uint8_t *INOUT, uint64_t (*db)[2]) {
-  uint64_t p2 = *(uint64_t *)INOUT;
-  uint64_t result0 = 0, result1 = 0;
-  #pragma GCC unroll 16
-  for (int i = 0; i < 64; i+= DB_SIZE_LOG) {
-    uint64_t L = db[(p2 >> i) & (DB_SIZE - 1)][0];
-    uint64_t H = db[(p2 >> i) & (DB_SIZE - 1)][1];
-    result0 ^= L << i;
-    if (i > 0) result1 ^= L >> (64 - i); 
-    result1 ^= H << i; 
+static inline void POLY_MUL_RED_IMP_DB3(uint8_t *INOUT, uint64_t (*db1), uint64_t (*db2), uint64_t (*db3)) {
+  uint64_t p = *(uint64_t *)INOUT;
+  uint64_t p1 = p & 0xFFFFFFFF;
+  uint64_t p2 = p >> 32;
+  uint64_t p3 = p1 ^ p2;
+  uint64_t z0 = 0, z1 = 0, z2 = 0;
+  for (int i = 0; i < 32; i+= DB_SIZE_LOG) {
+    z0 ^= db1[(p1 >> i) & (DB_SIZE - 1)] << i;
+    z2 ^= db2[(p2 >> i) & (DB_SIZE - 1)] << i;
+    z1 ^= db3[(p3 >> i) & (DB_SIZE - 1)] << i;
   }
+  z1 ^= z0 ^ z2;
+  uint64_t result0 = z0 ^ (z1 << 32);
+  uint64_t result1 = (z1 >> 32) ^ z2;
   result0 ^= result1;
   result0 ^= result1 << 9;
   result0 ^= result1 >> 55;
@@ -304,13 +323,10 @@ static inline void POLY_MUL_RED_IMP_DB(uint8_t *INOUT, uint64_t (*db)[2]) {
   *(uint64_t*)INOUT = result0;
 }
 
-#define DEBUG_IMP 1
-#define DEBUG_PERF 1
-
 int64_t st, keygen, ctr, auth;
 
 void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
-  #ifdef DEBUG_PERF
+  #if DEBUG_PERF
   st = cpucycles();
   #endif
 
@@ -330,7 +346,7 @@ void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t 
     RK[i][7] = rol8(RK[i - 1][7], (i + OFFSET5) % 8) + rol8(CONSTANT7, (i + OFFSET7) % 8);
   }
 
-  #ifdef DEBUG_PERF
+  #if DEBUG_PERF
   keygen = cpucycles();
   #endif
 
@@ -357,7 +373,6 @@ void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t 
       tmp[7] = tmp0;
     }
 
-    #pragma GCC unroll 8
     for (int j = 0; j < 8; j++) {
       for (int k = 0; k < 8; ++k) {
         CT[i * 64 + j * 8 + k] = PT[i * 64 + j * 8 + k] ^ ((uint8_t*)&tmp[k])[j];
@@ -365,33 +380,40 @@ void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t 
     }
   }
 
-  #ifdef DEBUG_PERF
+  #if DEBUG_PERF
   ctr = cpucycles();
   #endif
 
-  uint64_t CMUL_DB[DB_SIZE][2];
   uint64_t H = pack64(num_enc_auth, num_enc_auth ^ NONCE1, num_enc_auth & NONCE2, num_enc_auth | NONCE3, num_enc_auth ^ NONCE4, num_enc_auth & NONCE5, num_enc_auth | NONCE6, num_enc_auth ^ NONCE7);
-
-  CMUL_DB[0][0] = 0;
-  CMUL_DB[0][1] = 0;
+  uint64_t CMUL_DB1[DB_SIZE];
+  uint64_t CMUL_DB2[DB_SIZE];
+  uint64_t CMUL_DB3[DB_SIZE];
+  uint64_t H1 = H & 0xFFFFFFFF;
+  uint64_t H2 = H >> 32;
+  uint64_t H3 = H1 ^ H2;
+  CMUL_DB1[0] = 0;
+  CMUL_DB2[0] = 0;
+  CMUL_DB3[0] = 0;
   for (int i = 1, j = 0; i < DB_SIZE; i *= 2, ++j) {
-    CMUL_DB[i][0] = H << j;
-    CMUL_DB[i][1] = j > 0 ? H >> (64 - j) : 0;
+    CMUL_DB1[i] = H1 << j;
+    CMUL_DB2[i] = H2 << j;
+    CMUL_DB3[i] = H3 << j;
     for (int k = i + 1; k < 2 * i; ++k) {
-      CMUL_DB[k][0] = CMUL_DB[k - i][0] ^ CMUL_DB[i][0];
-      CMUL_DB[k][1] = CMUL_DB[k - i][1] ^ CMUL_DB[i][1];
+      CMUL_DB1[k] = CMUL_DB1[k - i] ^ CMUL_DB1[i];
+      CMUL_DB2[k] = CMUL_DB2[k - i] ^ CMUL_DB2[i];
+      CMUL_DB3[k] = CMUL_DB3[k - i] ^ CMUL_DB3[i];
     }
   }
 
   *(uint64_t*)AUTH = H;
-  POLY_MUL_RED_IMP_DB(AUTH, CMUL_DB);
+  POLY_MUL_RED_IMP_DB3(AUTH, CMUL_DB1, CMUL_DB2, CMUL_DB3);
   for (int i = 0; i < num_enc_auth; i++) {
     *(uint64_t*)AUTH ^= *(uint64_t*)&CT[i * 8];
-    POLY_MUL_RED_IMP_DB(AUTH, CMUL_DB);
+    POLY_MUL_RED_IMP_DB3(AUTH, CMUL_DB1, CMUL_DB2, CMUL_DB3);
     POLY_MUL_RED_IMP_SQ(AUTH);
   }
 
-  #ifdef DEBUG_PERF
+  #if DEBUG_PERF
   auth = cpucycles();
   #endif
 }
@@ -610,7 +632,11 @@ for (int iter = 0; iter < 3; ++iter) {
     printf("\n");
 }
 
-  #ifdef DEBUG_PERF
+  #if DEBUG_PERF
+  printf("Original\n");
+  printf("ctr %ld\n", tb - ta);
+  printf("auth %ld\n", tc - tb);
+  printf("Improved\n");
   printf("keygen %ld\n", keygen - st);
   printf("ctr %ld\n", ctr - keygen);
   printf("auth %ld\n", auth - ctr);
