@@ -11,7 +11,10 @@ struct bloc {
 };
 
 extern const bloc DES_IP_BOX[];
-extern const bloc DES_IIP_BOX[];
+extern const bloc DES_P_BOX[];
+extern const bloc DES_PC1_BOX[];
+extern const bloc DES_PC2_BOX[];
+extern const int DES_SHIFT_BOX[];
 
 // Encrypts 8 bytes of plaintext with a set of 16 round keys
 void DES_Encrypt(const uint8_t data[8], const uint8_t roundKeys[16][8], uint8_t result[8], int round = 16);
