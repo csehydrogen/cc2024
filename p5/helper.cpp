@@ -30,7 +30,7 @@ int little2big(int i) {
   return (i / 8) * 8 + (7 - (i % 8));
 }
 
-std::vector<int> find_effecitve_k_bits(int output_index, int round) {
+std::vector<int> find_effective_k_bits(int output_index, int round) {
   int x = paper2big(output_index, 32);
   // keep c-style index after this
   auto y = DES_P_BOX[big2little(x)];
@@ -130,7 +130,7 @@ void test_k_iteration() {
     PTs.push_back(PT);
     CTs.push_back(CT);
   }
-  auto effkidx = find_effecitve_k_bits(15, 1);
+  auto effkidx = find_effective_k_bits(15, 1);
   printf("effkidx: ");
   for (int i : effkidx) {
     printf("%d ", i);

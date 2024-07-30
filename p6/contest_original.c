@@ -14,11 +14,8 @@ int64_t cpucycles(void)
         return ((int64_t)lo) | (((int64_t)hi) << 32);
 }
 
-#define DEBUG_IMP 0
-#define DEBUG_PERF 0
-
 //BENCH ROUND
-#define BENCH_ROUND 100000
+#define BENCH_ROUND 1000
 
 // round of block cipher
 #define NUM_ROUND 80
@@ -207,216 +204,20 @@ void AUTH_mode(uint8_t* CT, uint8_t* AUTH, uint8_t num_auth){
     }
 }
 
-#if DEBUG_PERF
-int64_t ta, tb, tc;
-#endif
-
 void ENC_AUTH(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
-#if DEBUG_PERF
-    ta = cpucycles();
-#endif
     uint8_t num_enc_auth = length_in_byte / 8;
     
     CTR_mode(PT, MK, CT, num_enc_auth);
-#if DEBUG_PERF
-    tb = cpucycles();
-#endif
     AUTH_mode(CT,AUTH,num_enc_auth);
-#if DEBUG_PERF
-    tc = cpucycles();
-#endif
 }
-
-// EDIT START
-
-static inline uint8_t rol8(uint8_t x, uint8_t r) {
-  return (x << r) | (x >> (8 - r));
-}
-
-static inline uint64_t rol64(uint64_t x, uint8_t r) {
-  switch (r) {
-    case 0: return x;
-    case 1: return ((x << 1) & 0xFEFEFEFEFEFEFEFE) | ((x >> 7) & 0x0101010101010101);
-    case 2: return ((x << 2) & 0xFCFCFCFCFCFCFCFC) | ((x >> 6) & 0x0303030303030303);
-    case 3: return ((x << 3) & 0xF8F8F8F8F8F8F8F8) | ((x >> 5) & 0x0707070707070707);
-    case 4: return ((x << 4) & 0xF0F0F0F0F0F0F0F0) | ((x >> 4) & 0x0F0F0F0F0F0F0F0F);
-    case 5: return ((x << 5) & 0xE0E0E0E0E0E0E0E0) | ((x >> 3) & 0x1F1F1F1F1F1F1F1F);
-    case 6: return ((x << 6) & 0xC0C0C0C0C0C0C0C0) | ((x >> 2) & 0x3F3F3F3F3F3F3F3F);
-    case 7: return ((x << 7) & 0x8080808080808080) | ((x >> 1) & 0x7F7F7F7F7F7F7F7F);
-  }
-}
-
-static inline uint64_t pack64(uint8_t x0, uint8_t x1, uint8_t x2, uint8_t x3, uint8_t x4, uint8_t x5, uint8_t x6, uint8_t x7) {
-  return x0 | ((uint64_t)x1 << 8) | ((uint64_t)x2 << 16) | ((uint64_t)x3 << 24) | ((uint64_t)x4 << 32) | ((uint64_t)x5 << 40) | ((uint64_t)x6 << 48) | ((uint64_t)x7 << 56);
-}
-
-// compiled to paddb
-static inline uint64_t bytewise_add(uint64_t a, uint64_t b) {
-  uint64_t c;
-  for (int i = 0; i < 8; ++i) {
-    ((uint8_t*)&c)[i] = ((uint8_t*)&a)[i] + ((uint8_t*)&b)[i];
-  }
-  return c;
-}
-
-// compiled to pshuflw and pxor
-static inline uint64_t bytewise_xor(uint8_t a, uint64_t b) {
-  uint64_t c;
-  for (int i = 0; i < 8; ++i) {
-    ((uint8_t*)&c)[i] = a ^ ((uint8_t*)&b)[i];
-  }
-  return c;
-}
-
-static inline uint64_t dup8(uint8_t a) {
-  return a * 0x0101010101010101;
-}
-
-static inline uint64_t clsq_32b(uint64_t a) {
-  uint64_t c = 0;
-  uint64_t DB[4] = {0, a, a << 1, a ^ (a << 1)};
-  for (int i = 0; i < 32; i+= 2) {
-    c ^= DB[(a >> i) & 3] << i;
-  }
-  return c;
-}
-
-static inline void POLY_MUL_RED_IMP_SQ(uint8_t *INOUT) {
-  uint64_t p1 = *(uint64_t *)INOUT;
-  uint32_t p1l = p1;
-  uint32_t p1h = p1 >> 32;
-  uint64_t z0 = clsq_32b(p1l);
-  uint64_t z2 = clsq_32b(p1h);
-  uint64_t z1 = clsq_32b(p1l ^ p1h) ^ z0 ^ z2;
-  uint64_t result0 = z0 ^ (z1 << 32);
-  uint64_t result1 = (z1 >> 32) ^ z2;
-  result0 ^= result1;
-  result0 ^= result1 << 9;
-  result0 ^= result1 >> 55;
-  result0 ^= (result1 >> 55) << 9;
-  *(uint64_t*)INOUT = result0;
-}
-
-#define DB_SIZE 256
-#define DB_SIZE_LOG 8
-
-static inline void POLY_MUL_RED_IMP_DB3(uint8_t *INOUT, uint64_t (*db1), uint64_t (*db2), uint64_t (*db3)) {
-  uint64_t p = *(uint64_t *)INOUT;
-  uint64_t p1 = p & 0xFFFFFFFF;
-  uint64_t p2 = p >> 32;
-  uint64_t p3 = p1 ^ p2;
-  uint64_t z0 = 0, z1 = 0, z2 = 0;
-  for (int i = 0; i < 32; i+= DB_SIZE_LOG) {
-    z0 ^= db1[(p1 >> i) & (DB_SIZE - 1)] << i;
-    z2 ^= db2[(p2 >> i) & (DB_SIZE - 1)] << i;
-    z1 ^= db3[(p3 >> i) & (DB_SIZE - 1)] << i;
-  }
-  z1 ^= z0 ^ z2;
-  uint64_t result0 = z0 ^ (z1 << 32);
-  uint64_t result1 = (z1 >> 32) ^ z2;
-  result0 ^= result1;
-  result0 ^= result1 << 9;
-  result0 ^= result1 >> 55;
-  result0 ^= (result1 >> 55) << 9;
-  *(uint64_t*)INOUT = result0;
-}
-
-int64_t st, keygen, ctr, auth;
 
 void ENC_AUTH_IMP(uint8_t* PT, uint8_t* MK, uint8_t* CT, uint8_t* AUTH, uint8_t length_in_byte){
-  #if DEBUG_PERF
-  st = cpucycles();
-  #endif
-
-  uint8_t num_enc_auth = length_in_byte / 8;
-  uint8_t RK[NUM_ROUND][8];
-  *(uint64_t*)RK = *(uint64_t*)MK;
-
-  #pragma GCC unroll 79
-  for (int i = 1; i < NUM_ROUND; i++) {
-    RK[i][0] = rol8(RK[i - 1][0], (i + OFFSET1) % 8) + rol8(CONSTANT0, (i + OFFSET3) % 8);
-    RK[i][1] = rol8(RK[i - 1][1], (i + OFFSET5) % 8) + rol8(CONSTANT1, (i + OFFSET7) % 8);
-    RK[i][2] = rol8(RK[i - 1][2], (i + OFFSET1) % 8) + rol8(CONSTANT2, (i + OFFSET3) % 8);
-    RK[i][3] = rol8(RK[i - 1][3], (i + OFFSET5) % 8) + rol8(CONSTANT3, (i + OFFSET7) % 8);
-    RK[i][4] = rol8(RK[i - 1][4], (i + OFFSET1) % 8) + rol8(CONSTANT4, (i + OFFSET3) % 8);
-    RK[i][5] = rol8(RK[i - 1][5], (i + OFFSET5) % 8) + rol8(CONSTANT5, (i + OFFSET7) % 8);
-    RK[i][6] = rol8(RK[i - 1][6], (i + OFFSET1) % 8) + rol8(CONSTANT6, (i + OFFSET3) % 8);
-    RK[i][7] = rol8(RK[i - 1][7], (i + OFFSET5) % 8) + rol8(CONSTANT7, (i + OFFSET7) % 8);
-  }
-
-  #if DEBUG_PERF
-  keygen = cpucycles();
-  #endif
-
-  for (int i = 0; i < num_enc_auth / 8; i++) {
-    uint64_t tmp[8];
-    tmp[0] = pack64(i * 8 + 0, i * 8 + 1, i * 8 + 2, i * 8 + 3, i * 8 + 4, i * 8 + 5, i * 8 + 6, i * 8 + 7);
-    tmp[1] = dup8(NONCE1);
-    tmp[2] = dup8(NONCE2);
-    tmp[3] = dup8(NONCE3);
-    tmp[4] = dup8(NONCE4);
-    tmp[5] = dup8(NONCE5);
-    tmp[6] = dup8(NONCE6);
-    tmp[7] = dup8(NONCE7);
-
-    for (int r = 0; r < NUM_ROUND; r++) {
-      uint64_t tmp0 = tmp[0];
-      tmp[0] = rol64(dup8(RK[r][1]) ^ bytewise_add(tmp[0], dup8(RK[r][1]) ^ tmp[1]), 1);
-      tmp[1] = rol64(dup8(RK[r][2]) ^ bytewise_add(tmp[1], dup8(RK[r][2]) ^ tmp[2]), 2);
-      tmp[2] = rol64(dup8(RK[r][3]) ^ bytewise_add(tmp[2], dup8(RK[r][3]) ^ tmp[3]), 3);
-      tmp[3] = rol64(dup8(RK[r][4]) ^ bytewise_add(tmp[3], dup8(RK[r][4]) ^ tmp[4]), 4);
-      tmp[4] = rol64(dup8(RK[r][5]) ^ bytewise_add(tmp[4], dup8(RK[r][5]) ^ tmp[5]), 5);
-      tmp[5] = rol64(dup8(RK[r][6]) ^ bytewise_add(tmp[5], dup8(RK[r][6]) ^ tmp[6]), 6);
-      tmp[6] = rol64(dup8(RK[r][7]) ^ bytewise_add(tmp[6], dup8(RK[r][7]) ^ tmp[7]), 7);
-      tmp[7] = tmp0;
-    }
-
-    for (int j = 0; j < 8; j++) {
-      for (int k = 0; k < 8; ++k) {
-        CT[i * 64 + j * 8 + k] = PT[i * 64 + j * 8 + k] ^ ((uint8_t*)&tmp[k])[j];
-      }
-    }
-  }
-
-  #if DEBUG_PERF
-  ctr = cpucycles();
-  #endif
-
-  uint64_t H = pack64(num_enc_auth, num_enc_auth ^ NONCE1, num_enc_auth & NONCE2, num_enc_auth | NONCE3, num_enc_auth ^ NONCE4, num_enc_auth & NONCE5, num_enc_auth | NONCE6, num_enc_auth ^ NONCE7);
-  uint64_t CMUL_DB1[DB_SIZE];
-  uint64_t CMUL_DB2[DB_SIZE];
-  uint64_t CMUL_DB3[DB_SIZE];
-  uint64_t H1 = H & 0xFFFFFFFF;
-  uint64_t H2 = H >> 32;
-  uint64_t H3 = H1 ^ H2;
-  CMUL_DB1[0] = 0;
-  CMUL_DB2[0] = 0;
-  CMUL_DB3[0] = 0;
-  for (int i = 1, j = 0; i < DB_SIZE; i *= 2, ++j) {
-    CMUL_DB1[i] = H1 << j;
-    CMUL_DB2[i] = H2 << j;
-    CMUL_DB3[i] = H3 << j;
-    for (int k = i + 1; k < 2 * i; ++k) {
-      CMUL_DB1[k] = CMUL_DB1[k - i] ^ CMUL_DB1[i];
-      CMUL_DB2[k] = CMUL_DB2[k - i] ^ CMUL_DB2[i];
-      CMUL_DB3[k] = CMUL_DB3[k - i] ^ CMUL_DB3[i];
-    }
-  }
-
-  *(uint64_t*)AUTH = H;
-  POLY_MUL_RED_IMP_DB3(AUTH, CMUL_DB1, CMUL_DB2, CMUL_DB3);
-  for (int i = 0; i < num_enc_auth; i++) {
-    *(uint64_t*)AUTH ^= *(uint64_t*)&CT[i * 8];
-    POLY_MUL_RED_IMP_DB3(AUTH, CMUL_DB1, CMUL_DB2, CMUL_DB3);
-    POLY_MUL_RED_IMP_SQ(AUTH);
-  }
-
-  #if DEBUG_PERF
-  auth = cpucycles();
-  #endif
+    //uint8_t num_enc_auth = length_in_byte / 8;
+    
+    //CTR_mode(PT, MK, CT, num_enc_auth);
+    //AUTH_mode(CT,AUTH,num_enc_auth);
 }
 
-// EDIT END
 
 //PT range (1-255 bytes)
 #define LENGTH0 64
@@ -550,65 +351,8 @@ int main(int argc, const char * argv[]) {
         AUTH_TMP[i] = 0;
     }    
     printf("test pass. \n");
-
-    if (DEBUG_IMP) {
-    printf("--- TEST VECTOR for imp ---\n");
-    
-    ENC_AUTH_IMP(PT0, MK0, CT_TMP, AUTH_TMP, LENGTH0);
-    
-    for(i=0;i<LENGTH0;i++){
-        if(CT_TMP[i] != CT0[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        CT_TMP[i] = 0;
-    }
-    for(i=0;i<8;i++){
-        if(AUTH_TMP[i] != AUTH0[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        AUTH_TMP[i] = 0;
-    }
-    
-    ENC_AUTH_IMP(PT1, MK1, CT_TMP, AUTH_TMP, LENGTH1);
-    
-    for(i=0;i<LENGTH1;i++){
-        if(CT_TMP[i] != CT1[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        CT_TMP[i] = 0;
-    }
-    for(i=0;i<8;i++){
-        if(AUTH_TMP[i] != AUTH1[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        AUTH_TMP[i] = 0;
-    }
-    
-    ENC_AUTH_IMP(PT2, MK2, CT_TMP, AUTH_TMP, LENGTH2);
-   
-    for(i=0;i<LENGTH2;i++){
-        if(CT_TMP[i] != CT2[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        CT_TMP[i] = 0;
-    }
-    for(i=0;i<8;i++){
-        if(AUTH_TMP[i] != AUTH2[i]){
-            printf("wrong result.\n");
-            return 0;
-        }
-        AUTH_TMP[i] = 0;
-    }    
-    printf("test pass. \n");
-    }
         
     printf("--- BENCHMARK ---\n");
-for (int iter = 0; iter < 3; ++iter) {
     cycles=0;
     cycles1 = cpucycles();
     for(i=0;i<BENCH_ROUND;i++){
@@ -628,17 +372,6 @@ for (int iter = 0; iter < 3; ++iter) {
     cycles = cycles2-cycles1;
     printf("Improved implementation runs in ................. %8lld cycles", cycles/BENCH_ROUND);
     printf("\n");
-}
-
-  #if DEBUG_PERF
-  printf("Original\n");
-  printf("ctr %ld\n", tb - ta);
-  printf("auth %ld\n", tc - tb);
-  printf("Improved\n");
-  printf("keygen %ld\n", keygen - st);
-  printf("ctr %ld\n", ctr - keygen);
-  printf("auth %ld\n", auth - ctr);
-  #endif
     
     return 0;
 }
