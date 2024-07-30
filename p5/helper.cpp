@@ -4,6 +4,9 @@
 #include <iostream>
 #include "DES.h"
 
+#include <pybind11/pybind11.h>
+#include <torch/extension.h>
+
 // hex : 01 23 45 67 89 AB CD EF
 // bin : 00000001 00100011 01000101 01100111 10001001 10101011 11001101 11101111
 // paper style index (right-to-left)
@@ -112,8 +115,6 @@ std::vector<int> extract_rhs_bits(uint64_t *rk, std::vector<std::pair<int, int>>
   return ret;
 }
 
-#include <pybind11/pybind11.h>
-
 void test_k_iteration() {
   std::default_random_engine gen(42);
   std::uniform_int_distribution<uint64_t> dist;
@@ -168,23 +169,30 @@ void test_k_iteration() {
   printf("original K: "); printbin(K);
 }
 
+std::default_random_engine global_gen;
 
-void gen_dataset(pybind11::list ptlist, pybind11::list klist) {
-  std::default_random_engine gen(42);
-  std::uniform_int_distribution<uint64_t> dist;
+void set_seed(uint64_t seed) {
+  global_gen.seed(seed);
+}
 
-  int n = 1, correct = 0;
-  for (int i = 0; i < n; i++) {
-    uint64_t PT = dist(gen);
-    uint64_t K = dist(gen);
-    //uint64_t PT = i;
-    //uint64_t K = 0xdeadbeefdeadbeef + i;
+void gen_dataset(size_t dataset_sz, torch::Tensor& x, torch::Tensor& y) {
+  std::uniform_int_distribution<uint64_t> pt_dist;
+  std::uniform_int_distribution<uint64_t> k_dist;
+  std::uniform_int_distribution<uint64_t> y_dist(0, 1);
+
+  for (int i = 0; i < dataset_sz; i++) {
+    uint64_t PT = pt_dist(global_gen);
+    uint64_t Y = y_dist(global_gen);
+    uint64_t K;
     uint64_t roundKeys[16];
-    DES_CreateKeys((uint8_t*)&K, (uint8_t(*)[8])roundKeys);
-    //for (int i = 0; i < 16; ++i) {
-    //  printf("rk[%d]: ", i);
-    //  printhex(roundKeys[i]);
-    //}
+    while (true) {
+      K = k_dist(global_gen);
+      DES_CreateKeys((uint8_t*)&K, (uint8_t(*)[8])roundKeys);
+      auto rhs_bits = extract_rhs_bits(roundKeys, {{2, 22}, {4, 22}});
+      int t = 0;
+      for (int b : rhs_bits) t ^= b;
+      if (t == 0) break;
+    }
     uint64_t CT = 0;
 
     // Guide
@@ -214,43 +222,23 @@ void gen_dataset(pybind11::list ptlist, pybind11::list klist) {
     //auto lhs_bits = extract_lhs_bits(PT, CT, roundKeys, {7, 18, 24}, {12, 16}, {15}, {7, 18, 24, 29}, {12, 16}, 1);
     //auto rhs_bits = extract_rhs_bits(roundKeys, {{2, 19}, {2, 23}, {4, 22}, {5, 44}, {6, 22}, {8, 22}});
 
-    //printf("lhs_bits:");
-    //for (int b : lhs_bits) {
-    //  printf(" %d", b);
-    //}
-    //printf("\n");
-
-    //printf("rhs_bits:");
-    //for (int b : rhs_bits) {
-    //  printf(" %d", b);
-    //}
-    //printf("\n");
-
-    int lhs_xor = 0;
-    for (int b : lhs_bits) {
-      lhs_xor ^= b;
+    // negative sample
+    if (Y == 0) {
+      lhs_bits[10] ^= 1;
+      //lhs_bits[10] = y_dist(global_gen);
     }
 
-    int rhs_xor = 0;
-    for (int b : rhs_bits) {
-      rhs_xor ^= b;
+    for (int j = 0; j < lhs_bits.size(); ++j) {
+      x[i][j] = (float)lhs_bits[j];
     }
-
-    if (lhs_xor == rhs_xor) {
-      correct++;
-    }
-
-    //printhex(PT);
-    //printhex(K);
-    //printhex(CT);
-    ptlist.append(PT);
-    klist.append(K);
+    y[i] = (long)Y;
+    //y[i] = (long)(rhs_bits[0] ^ rhs_bits[1]);
   }
-  printf("correct: %d/%d\n", correct, n);
 }
 
 PYBIND11_MODULE(helper, m) {
   m.def("test", &test);
   m.def("gen_dataset", &gen_dataset);
   m.def("test_k_iteration", &test_k_iteration);
+  m.def("set_seed", &set_seed);
 }
