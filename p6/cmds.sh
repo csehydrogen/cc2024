@@ -77,3 +77,16 @@ gcc-11 -O3 -g contest.c -o contest; objdump -S contest > objdump.txt
       CT[i * 8 + j] = PT[i * 8 + j] ^ tmp[j];
     }
   }
+
+  64-bit key schedule
+
+
+  uint64_t rk_consts = pack64(CONSTANT0, CONSTANT1, CONSTANT2, CONSTANT3, CONSTANT4, CONSTANT5, CONSTANT6, CONSTANT7);
+  uint64_t tmp = *(uint64_t*)RK;
+  #pragma GCC unroll 79
+  for (int i = 1; i < NUM_ROUND; i++) {
+    uint64_t a = interleave(rol64(tmp, (i + OFFSET1) % 8), rol64(tmp, (i + OFFSET5) % 8));
+    uint64_t b = interleave(rol64(rk_consts, (i + OFFSET3) % 8), rol64(rk_consts, (i + OFFSET7) % 8));
+    tmp = bytewise_add(a, b);
+    *((uint64_t*)&RK[i]) = tmp;
+  }

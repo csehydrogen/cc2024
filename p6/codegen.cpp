@@ -12,6 +12,17 @@ uint64_t dup(uint8_t _mask) {
   return mask | (mask << 8) | (mask << 16) | (mask << 24) | (mask << 32) | (mask << 40) | (mask << 48) | (mask << 56);
 }
 int main() {
+  for (int i = 1; i < 80; ++i) {
+    printf("RK[%d][0] = rol8(RK[%d][0], (%d + OFFSET1) %% 8) + rol8(CONSTANT0, (%d + OFFSET3) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][1] = rol8(RK[%d][1], (%d + OFFSET5) %% 8) + rol8(CONSTANT1, (%d + OFFSET7) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][2] = rol8(RK[%d][2], (%d + OFFSET1) %% 8) + rol8(CONSTANT2, (%d + OFFSET3) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][3] = rol8(RK[%d][3], (%d + OFFSET5) %% 8) + rol8(CONSTANT3, (%d + OFFSET7) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][4] = rol8(RK[%d][4], (%d + OFFSET1) %% 8) + rol8(CONSTANT4, (%d + OFFSET3) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][5] = rol8(RK[%d][5], (%d + OFFSET5) %% 8) + rol8(CONSTANT5, (%d + OFFSET7) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][6] = rol8(RK[%d][6], (%d + OFFSET1) %% 8) + rol8(CONSTANT6, (%d + OFFSET3) %% 8); ", i, i - 1, i, i);
+    printf("RK[%d][7] = rol8(RK[%d][7], (%d + OFFSET5) %% 8) + rol8(CONSTANT7, (%d + OFFSET7) %% 8); ", i, i - 1, i, i);
+  }
+  return 0;
   for (int i = 1; i < 8; ++i) {
     printf("0x%016lX, 0x%016lX\n", dup(0xff << i), dup(0xff >> (8 - i)));
   }
