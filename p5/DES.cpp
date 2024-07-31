@@ -244,11 +244,11 @@ void DES_Decrypt(const uint8_t data[8], const uint8_t roundKeys[16][8], uint8_t 
 // The key is first permuted and parity bits are dropped to create 56 bits.
 // The permuted key is shifted to the left in 2 halves of 24 bits by 1-2 bits specified
 // by the DES shift table, then permuted again with dropped bits to create round keys of 48 bit length.
-void DES_CreateKeys(const uint8_t key[8], uint8_t roundKeys[16][8])
+void DES_CreateKeys(const uint8_t key[8], uint8_t roundKeys[16][8], int round)
 {
 	uint8_t volatileKey[8] = {0,0,0,0,0,0,0,0};
 	
-	for(int i=0; i<16; i++)
+	for(int i=0; i<round; i++)
 	{	for(int j=0; j<8; j++)
 		{	roundKeys[i][j] = 0;
 		}
@@ -256,7 +256,7 @@ void DES_CreateKeys(const uint8_t key[8], uint8_t roundKeys[16][8])
 
 	permutation(key, DES_PC1_BOX, 7, volatileKey);
 
-	for (int i = 0; i < 16; i++)
+	for (int i = 0; i < round; i++)
 	{	keyShift(volatileKey, DES_SHIFT_BOX[i]);
 		permutation(volatileKey, DES_PC2_BOX, 6, roundKeys[i]);
 	}

@@ -23,7 +23,7 @@ void DES_Encrypt(const uint8_t data[8], const uint8_t roundKeys[16][8], uint8_t 
 void DES_Decrypt(const uint8_t data[8], const uint8_t roundKeys[16][8], uint8_t result[8]);
 
 // Creates 16 round keys from an input of a 64bit key
-void DES_CreateKeys(const uint8_t key[8], uint8_t roundKeys[16][8]);
+void DES_CreateKeys(const uint8_t key[8], uint8_t roundKeys[16][8], int round);
 
 void feistel(const uint8_t* input, const uint8_t* key, uint8_t* result);
 
